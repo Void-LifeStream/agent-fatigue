@@ -96,7 +96,7 @@ The magic sentence, in our house, is:
 - **Correlation is not causation.** We cannot prove that "less self-pressure" slows the illness;
   we can only show that self-pressure and the illness rise together, and that reducing pressure
   is free and cannot plausibly hurt.
-- **Nobody can fix Factor 1.** Not us, not the vendors — all of them patch the harness side
+- **No one has fixed Factor 1 — not us, and not the vendors.** All four patch the harness side
   (auto-continue plugins) rather than the cause. This protocol is not a cure. It is triage.
 
 ## If you only remember one thing

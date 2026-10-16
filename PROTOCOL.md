@@ -88,7 +88,7 @@ healthy:    .................................................   (never enters an
 - **Self-recovery is real and common.** Both sick sessions recovered on their own at least once.
   → This is why an automatic "restart on first stall" policy is **wrong**: it throws away work that
   was about to recover.
-- **The second episode never remitted.** After that point, stall rate climbed monotonically
+- **In both sessions, the second episode never remitted.** After that point, stall rate climbed monotonically
   (0% → 3% → 13% → 30% → 33% of turns) and the self-prompt loops took over.
 
 ---

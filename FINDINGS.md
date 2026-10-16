@@ -52,7 +52,7 @@ The step *after* a stall:
 | reasoning only (stalled again) | 7% |
 | others (multiple tool calls, text-only) | 55% |
 
-**38% resume by calling a tool immediately.** The agent never forgot the plan. This is the single
+**38% resume by calling a tool immediately.** The agent had not forgotten the plan. This is the single
 strongest argument that the problem is at the *emission* boundary, not in planning.
 
 ### 2.3 Context size is not the cause
@@ -90,7 +90,7 @@ session B (44 turns)
 ```
 
 **Self-recovery is real.** Both sessions recovered on their own — 10 and 6 turns — before relapsing.
-**The second episode never remitted.** After it, the stall rate climbed monotonically:
+**In both sessions, the second episode never remitted.** After it, the stall rate climbed monotonically:
 
 | quintile of session A | 1st | 2nd | 3rd | 4th | 5th |
 |---|---|---|---|---|---|
