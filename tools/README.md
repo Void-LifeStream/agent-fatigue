@@ -1,0 +1,55 @@
+# `tools/` — reference implementation
+
+`session-signals.cjs` scores a session from **L0 to L4** using the criteria described in
+[PROTOCOL.md](../PROTOCOL.md), by reading session logs. It is the instrument we used to produce
+[FINDINGS.md](../FINDINGS.md).
+
+> ⚠️ **This implementation is DSH-specific.** It reads DSH's session logs
+> (`~/.dsh/sessions/**/session.v4.jsonl.zstd`, multi-frame zstd) and DSH's project cache.
+> The *criteria* are portable; the *file formats* are not. Porting it to another harness means
+> replacing two functions: `collect()` and `analyze()`.
+
+## Usage
+
+```bash
+node session-signals.cjs                 # compact, exactly 2 lines (for a session-start hook)
+node session-signals.cjs --full          # full table + the reasoning behind every threshold
+node session-signals.cjs --self-test     # 21 assertions on synthetic logs (never touches real data)
+node session-signals.cjs --verify-cache  # audit the cache: recompute 5 sessions and compare
+node session-signals.cjs --json          # machine-readable
+```
+
+Options: `--dir <path>` (session root), `--me <id>` (mark "this session"), `--tier1/--tier2 <MB>`
+(context-size tiers), `--thresh <N>`, `--recent <H>`, `--no-cache`, `--no-titles`.
+
+## What it measures
+
+| Signal | How | Threshold used |
+|---|---|---|
+| **self-pressure trend** | count of *quick / now / immediately / must / don't ramble* per 1k chars of reasoning; compare last quintile to first (≥10 turns only) | ≥ 3× **and** last-quintile density ≥ 1.0/1k |
+| **stalls** | turns whose final step has reasoning but no text/tool call; clustered into episodes (gap ≤ 3 turns, ≥ 2 stalls per cluster) | stage L3 when a 2nd episode appears or an episode has not remitted for 5 turns |
+| **self-prompt loops** | max repeats of the same ≤6-char line inside one reasoning block, after stripping fenced code | ≥ 30 → L3; ≥ 100 → L4 |
+| **context size** | compressed log bytes (tiers) | reported for *visibility only* — **not** a risk score |
+
+## Notes from building it
+
+Four traps we hit, all of which cost real debugging time:
+
+1. **Multi-frame zstd.** `zstdDecompressSync` decodes only the first frame. Cut frames on the magic
+   bytes `28 B5 2F FD`; when a cut fails, extend to the next magic instead of discarding — the
+   magic sequence can occur *inside* compressed data, and a naive split silently drops a whole frame.
+2. **Fenced code blocks.** Without stripping them, a JSON `}` is the most-repeated "short line" in
+   every session, and every session looks terminally ill.
+3. **Bigger tool results are not the cause.** We checked: median result size before a stall was
+   1853 chars vs 1269 before a normal step — a 1.46× difference, far too weak to use.
+4. **A cache is part of your criterion.** File-size-keyed caching is safe (logs are append-only),
+   but the cache **version must change whenever the algorithm or a threshold does** — otherwise a
+   stale entry reports yesterday's score with today's rules. We shipped that bug and caught it.
+
+## Boundaries
+
+- Thresholds are separation bands measured on **one machine** (~400 sessions). Re-measure before
+  trusting them, and prefer `--full` output (which prints the raw numbers) over the grade.
+- The tool **does not diagnose anything**. It reports observations, and its own output says so.
+- `--self-test` builds synthetic logs in a temp dir and removes them; it never reads or writes your
+  real session data.
