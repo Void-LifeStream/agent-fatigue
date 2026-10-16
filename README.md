@@ -87,6 +87,7 @@ The magic sentence, in our house, is:
 |---|---|
 | **[PROTOCOL.md](PROTOCOL.md)** | The staging system + treatment, written to be portable to any agent setup |
 | **[FINDINGS.md](FINDINGS.md)** | The full field report: method, measurements, the things we got wrong, and the primary sources |
+| **[FIELD-NOTES.md](FIELD-NOTES.md)** | **What happened when we actually used it** — one real run, including what it does *not* prove |
 | **[tools/](tools/)** | A reference implementation (built for DSH) that scores a session L0–L4 from its logs |
 
 ## Honest boundaries
