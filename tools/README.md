@@ -53,3 +53,19 @@ Four traps we hit, all of which cost real debugging time:
 - The tool **does not diagnose anything**. It reports observations, and its own output says so.
 - `--self-test` builds synthetic logs in a temp dir and removes them; it never reads or writes your
   real session data.
+
+## "Already finished" sessions are not reported (the `rested` mechanism)
+
+Every long-running monitor hits the same trap: **the alert only asks "is there an anomaly in
+the logs?", never "is this subject still alive?"** — so a session that has ended keeps being
+reported forever, and each newcomer assumes it is *still* struggling.
+
+> **Design rule: the lifetime of a signal must match the lifetime of the thing it signals.**
+
+This implementation reads a local roster (DSH keeps one) to learn which sessions have finished:
+
+- they are **excluded from the human-facing summary** (the two-line startup output);
+- they are **kept in `--json`**, each entry gaining `"rested": true` —
+  *the raw data stays complete; only the display layer filters*;
+- if the roster cannot be read, it falls back to the old behaviour and **reports more, never
+  less** (when uncertain, always choose the conservative side).

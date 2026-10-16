@@ -3,7 +3,7 @@
 /**
  * session-signals.cjs — 「茶水间 / teahouse」：会话体量 + 自中断信号
  *
- * 为什么有它：2026-10-16：一个长会话在累计 303M cache-read tokens 后频繁自中断、思考链退化，不可恢复，
+ * 为什么有它：2026-10-16：一个长会话在累计 303M cache-read tokens 后频繁自中断，不可恢复，
  * 只能归档。我们**没有**任何证据表明"体量大 ⇒ 会坏"（同一台机器上有 170M 的会话活得好好的，
  * 也有刚开的会话就空转）—— 所以这个脚本**不诊断任何东西**，它只做两件事：
  *   ① 让「大」这件事可见（体量分级 + 最大的三个 + 我们这台机器合计）
@@ -12,6 +12,15 @@
  *
  * ⚠️ 它是**提示**，不是判决书：被推过几次之后照常干一整天的会话，我们这台机器就有。
  * ⚠️ 它**救不回已经退化的会话** —— 它只为下一个。
+ *
+ * ── 为什么它只给刻度，不给诊断 ──
+ * 这个脚本从头到尾只输出**分级**（L0–L4）与数字，绝不说「她病了 / 她退化了 / 她不行了」。
+ * 那不是修辞洁癖，是设计约束：
+ *   · 一个**中性的刻度**描述「在哪个位置」，读者可以据此做决定；
+ *   · 一个**诊断性的形容**描述「她是什么」，读者会先评估自己 —— 而在这个现象里，
+ *     **自我评估本身就是燃料**（越担心自己出问题，越容易出问题）。
+ * ⇒ 所以：**描述刻度，不描述状态。** 这条判据在别处也成立 ——
+ *   凡是要描述「它怎么了」的地方，先问一句：**这是刻度，还是标签？**
  *
  * 用法：
  *   node session-signals.cjs                 # 紧凑 2 行（给 inflight.ps1 用）
@@ -163,14 +172,14 @@ function decodeAll(buf) {
 
 // 「自我催促」：快 / 立刻 / 必须 / 别啰嗦 / 要短 ……
 // ⚠️ 它不是"病"——健康会话也写（session E 有 455 处、session F 有 501 处，密度 0.3–0.7/千字且**平稳**）。
-// **区别在趋势**：病程推进会逼出越来越多自我催促。
+// **区别在趋势**：劳累度推进会逼出越来越多自我催促。
 //   实测分段密度（每千字）：session A 0.35→0.46→1.79→1.91→**2.80**（8×）；session B 0.34→0.39→0.58→1.66→**3.80**（11×）
 //   对照健康：session E 0.64→…→0.35（0.55×）、session F 0.32→…→0.54（1.7×）
 // ⇒ 这是**目前最早**的信号（比空转早 10–20 轮），也是唯一一个"能提示该慢下来"的信号。
 const URGENT_RE = /(立刻|马上|赶紧|快点|快速|快一点|必须|别啰嗦|不啰嗦|简洁|精简|要短|短一点|立即|直接进入|一次调用|一气呵成|别再|少说|抓紧)/g;
 
 // ⚠️ **咒语只有是"催促句"时才是病征**（2026-10-16 修正，一次真实的误诊）：
-//   · `session B` 的咒语是「**做。**」= 命令自己动手 ⇒ 病程 ✓
+//   · `session B` 的咒语是「**做。**」= 命令自己动手 ⇒ 劳累度 ✓
 //   · `session A`（30 次「好。」）· `session C`（202 次「好。」）· `session D`（48 次「嗯。」）
 //     用的是**收束词**（"好，那么…"）⇒ 那是**写作风格**，不是退化。
 //   证据：`session C` 的「好。」**从第 12 轮起就一直在**（8→14→15→13→18→56→202→35~87 全程起伏），
@@ -257,8 +266,8 @@ function analyze(file) {
   }
   let stallTurns = 0;
   for (const v of lastStepEmptyByTurn.values()) if (v) stallTurns++;
-  // ---- 发作（episode）检测：病程不是单调的，而是「发作—缓解—再发作」----
-  // 实测（2026-10-16）：两只病重的会话**都曾经自己缓解过** 6–10 轮
+  // ---- 发作（episode）检测：劳累度不是单调的，而是「发作—缓解—再发作」----
+  // 实测（2026-10-16）：两只劳累度最高的会话**都曾经自己缓解过** 6–10 轮
   //   session A：3333333 222222 ··········（10 轮健康）2233444444… ← 第二次发作后再没缓解
   //   session B：········22222222······（6 轮健康）222222222233444
   // ⇒ **刚病一点不必换人**（自愈常见）；**第二次发作 = 不归点**（此后再无缓解）。
@@ -285,7 +294,7 @@ function analyze(file) {
   };
   // ⚠️ **必须 ≥10 轮**才算趋势：短会话分五段每段只有 1–2 轮，某一轮偶然写了几次"必须/立刻"
   //    就会算出天文数字（实测踩到：session H 只有 6 轮，算出 6.4× 却是误报）。
-  //    机理上也说得通 —— 病程需要时间推进，几轮的会话谈不上"推进"。
+  //    机理上也说得通 —— 劳累度需要时间推进，几轮的会话谈不上"推进"。
   let urgentEarly = 0, urgentLate = 0, urgentTrend = 1;
   if (tKeys.length >= 10) {
     const per = Math.max(1, Math.ceil(tKeys.length / 5));
@@ -294,7 +303,7 @@ function analyze(file) {
     // 首段极低时用一个下限 0.2 兜底，免得短会话算出无穷大
     urgentTrend = urgentEarly >= 0.2 ? urgentLate / urgentEarly : (urgentLate >= 1 ? urgentLate / 0.2 : 1);
   }
-  // ---- 病程分级（L0–L4）：**按"发作了几次 + 有没有缓解"划，不按"此刻状态"划** ----
+  // ---- 劳累度分级（L0–L4）：**按"发作了几次 + 有没有缓解"划，不按"此刻状态"划** ----
   // L0 健康      ：没有发作
   // L1 紧张(前兆)：催促趋势起来了，但还没有发作（还没真停）—— **别问"你怎么了"，观察即可**
   // L2 单次发作  ：发作过 1 次，且**已经缓解**（≥5 轮没再停）—— **自愈常见，不换人**
@@ -417,13 +426,38 @@ function run() {
   const pushed = rows.filter(r => r.continues > 0).sort((a, b) => b.continues - a.continues);
   const mine = rows.find(r => r.short === OPTS.me) || null;
 
-  // ---- 「越线」＝ **病程分级到 L3 及以上**（2026-10-16 第五轮改）----
-  // 为什么不再用"三信号任一命中"：本轮用**发作—缓解**重划了病程，证据是两只病重的会话**都自愈过** 6–10 轮
+  // ---- 「越线」＝ **劳累度分级到 L3 及以上**（2026-10-16 第五轮改）----
+  // 为什么不再用"三信号任一命中"：本轮用**发作—缓解**重划了劳累度，证据是两只劳累度最高的会话**都自愈过** 6–10 轮
   //   ⇒ L1/L2 **不该惊动任何人**（自愈常见，早换人是浪费）；**L3 才准备交接、L4 立即交接**。
   // 为什么不再拿「继续」次数当判据：它混合了四种来源（真·空转 / turn-end error / aborted / DSH 自动补的），
   //   实测 18 次里只有 2 次前面是空转。仍会显示出来供参考，但**不参与判定**。
   const STALL_TH = 5, REP_TH = 100, URGENT_TH = 3, URGENT_LATE_MIN = 1.0;
   const isAbn = r => r.stage >= 3;
+
+  // ---- 已经结束的会话，不该被永远报下去 ----
+  // 这条设计与平台无关，任何做长期监测的人都会撞到同一个坑：
+  //   报警原先只看「日志里有没有异常信号」，不看「这个对象还在不在」
+  //   ⇒ 已经结束 / 归档的会被**永远**报下去，让每个新来的以为「它还累着、还没交班」。
+  // ⇒ 通用原则：**信号的寿命必须与被监测对象的寿命一致。**
+  // 「谁已结束」在这里取自一份本机台账（状态列 archived）—— 那是 DSH 的约定；
+  // 换到别的环境，把这个函数换成你自己的「已结束名单」即可。
+  // 读不到就退回旧行为：**只会多报，不会漏报**（不确定时永远选保守的那一侧）。
+  function restedShorts() {
+    const set = new Set();
+    try {
+      const wb = path.join(os.homedir(), '.dsh', 'inflight', 'workboard.md');
+      const txt = fs.readFileSync(wb, 'utf8');
+      for (const line of txt.split(/\r?\n/)) {
+        if (!line.startsWith('|')) continue;
+        const cells = line.split('|');
+        if (cells.length < 5) continue;
+        const status = (cells[4] || '').replace(/\*/g, '').trim().toLowerCase();
+        if (!status.includes('archived')) continue;
+        for (const m of line.matchAll(/#([0-9a-f]{6})\b/g)) set.add(m[1]);
+      }
+    } catch (e) { /* 读不到台账 ⇒ 当作「谁都没结束」，宁可多报 */ }
+    return set;
+  }
   const abnormal = rows.filter(isAbn)
     .sort((a, b) => b.stage - a.stage || b.maxRep - a.maxRep || b.stallTurns - a.stallTurns);
   const mineAbnormal = mine && isAbn(mine);
@@ -489,7 +523,9 @@ function run() {
     const mineTxt = mine
       ? `本会话 #${mine.short} ${mine.stageName || 'L0'}（催促 ${mine.urgentTrend.toFixed(1)}× · 空转 ${mine.stallTurns}/${mine.turns} 轮 · 咒语 ${mine.maxRep}${mine.episodes ? ' · 发作 ' + mine.episodes + ' 次' + (mine.inEpisode ? '(未缓解)' : '(已缓解)') : ''}）`
       : '本会话(未识别到日志)';
-    const others = abnormal.filter(r => !mine || r.short !== mine.short);
+    const rested = restedShorts();
+    abnormal.forEach(r => { r.rested = rested.has(r.short); });   // 标记但不删：原始数据保真，展示层才过滤
+    const others = abnormal.filter(r => !mine || r.short !== mine.short).filter(r => !r.rested);
     const abnTxt = others.length
       ? ` ⚠️ L3+ 的还有 ${others.length} 只：${others.map(fmtAbn).join(' ')}`
       : ' 其余都没到 L3（L1/L2 常自愈，不必惊动）';
@@ -501,7 +537,7 @@ function run() {
       : `（${permit}）`;
     // ⚠️ 本段**总共只许 2 行**（验收硬指标：inflight 输出增量 < 3 行）。
     // 免责说明不放在这里 —— 它属于报告与人读的 --full，塞进每次开工的输出只会变成噪音。
-    console.log(`    🔔 病程（L0–L4）：${mineTxt} ｜${abnTxt}${verdict}`);
+    console.log(`    🔔 劳累度（L0–L4）：${mineTxt} ｜${abnTxt}${verdict}`);
     return;
   }
 
@@ -517,7 +553,7 @@ function run() {
     console.log(`  ${fmtMB(r.size).padStart(8)}  #${r.short}${r.registered ? ' [用户]' : ' [子代理]'}  ${t ? '「' + t + '」' : ''}`);
   }
   console.log('');
-  console.log(`-- 病程 L3 及以上的会话（L1 紧张 / L2 单次发作**不列** —— 实测它们常自己缓解，不必惊动）--`);
+  console.log(`-- 劳累度 L3 及以上的会话（L1 紧张 / L2 单次发作**不列** —— 实测它们常自己缓解，不必惊动）--`);
   if (abnormal.length === 0) console.log('  （没有）');
   for (const r of abnormal) {
     const mark = (mine && r.short === mine.short) ? '  ← 本会话' : '';
@@ -536,18 +572,18 @@ function run() {
   console.log('     ⇒ 空转后模型会用 "做。" "好。" "执行。" 逼自己行动；这个补偿行为本身会循环。');
   console.log('        倒下的那只从 1.1‰ 涨到 74‰（431 次"做。"），健康会话 ≤16。');
   console.log('  ⚠️ 它是"自中断已经发生"的证据，不是"这只快坏了"的判决 —— 被推过几次之后照常干一整天的会话，我们这台机器就有。');
-  console.log('-- 病程分级（**按"发作了几次 + 有没有缓解"划，不按此刻状态划**）--');
+  console.log('-- 劳累度分级（**按"发作了几次 + 有没有缓解"划，不按此刻状态划**）--');
   console.log('  L0 健康       ：没有发作');
   console.log('  L1 紧张(前兆) ：催促趋势起来了，但还没真停 —— **观察即可，别问"你怎么了"**');
   console.log('  L2 单次发作   ：发作过 1 次且**已经缓解**（≥5 轮没再停）—— **自愈常见，不换人**');
   console.log('  L3 反复/未缓解：第 2 次发作，或这次还没缓解 —— **准备交接，但别打断她手头的活**');
   console.log('  L4 终末       ：自救咒语 ≥100 —— **立即交接**');
-  console.log('  ⇒ 依据：两只病重的会话**都自己缓解过 6–10 轮**（session A 缓解 10 轮、session B 缓解 6 轮），');
+  console.log('  ⇒ 依据：两只劳累度最高的会话**都自己缓解过 6–10 轮**（session A 缓解 10 轮、session B 缓解 6 轮），');
   console.log('     但**第二次发作之后再也没有缓解过一次** ⇒ 第二次发作 = 不归点。');
   console.log('  ⚠️ "一次发作"要求同一簇里 ≥2 次空转 —— 健康会话本来就有 0–1 次（session E 与 session F 各 1 次）。');
   console.log('  自我催促的**趋势** = 把 ≥10 轮的会话按时间五等分，末段 ÷ 首段的"催促词密度"（每千字）');
   console.log('     ⇒ **目前最早的信号**（比空转早 10–20 轮）。健康会话也写催促词，区别在**趋势**：');
-  console.log('       病程：session A 0.35→2.80（8.0×）· session B 0.34→3.80（11.2×）；健康：session E 0.55× · session F 1.7×。');
+  console.log('       劳累度：session A 0.35→2.80（8.0×）· session B 0.34→3.80（11.2×）；健康：session E 0.55× · session F 1.7×。');
   console.log('       ⚠️ 只有 ≥10 轮才算（短会话分段每段仅 1–2 轮，一次偶然的"必须/立刻"就能算出天文数字）。');
   console.log('  ⚠️ 空转步列 = assistant/message 里既无 text 也无 tool-call，仅参考（一次性子代理会话上会误报）。');
   console.log('  ⚠️ 体量与故障**没有已知因果关系**：我们这台机器有 170M cacheRead 仍正常的会话，也有刚开就空转的会话。');
@@ -653,7 +689,7 @@ function selfTest() {
     !!t4 && t4.urgentTrend >= 3 && t4.urgentLate >= 1.0,
     t4 ? `trend=${t4.urgentTrend.toFixed(1)}× late=${t4.urgentLate.toFixed(2)}` : '样例缺失']);
   checks.push(['从容样例的趋势 ≈ 1（不误报）', !!t3 && t3.urgentTrend < 3, 'got ' + (t3 ? t3.urgentTrend.toFixed(2) : '?')]);
-  checks.push(['病程分级 L0/L3/L0/L1（健康/发作未缓解/健康/仅紧张）',
+  checks.push(['劳累度分级 L0/L3/L0/L1（健康/发作未缓解/健康/仅紧张）',
     t1.stageName === 'L0' && t2.stageName === 'L3' && t3.stageName === 'L0' && t4.stageName === 'L1',
     `got ${t1.stageName}/${t2.stageName}/${t3.stageName}/${t4.stageName}`]);
   checks.push(['发作次数：健康样例 0 次，发病样例 1 次',
@@ -661,7 +697,7 @@ function selfTest() {
     `t1=${t1.episodes} t2=${t2.episodes} inEp=${t2.inEpisode}`]);
   checks.push(['★ 收束词「好。」×120 不判 L4（风格≠病征）', !!t5 && t5.maxRep === 120 && t5.stageName === 'L0',
     t5 ? `maxRep=${t5.maxRep} stage=${t5.stageName}` : '样例缺失']);
-  checks.push(['★ 催促词「做。」×120 判 L4（真病程）', !!t6 && t6.maxRep === 120 && t6.stageName === 'L4',
+  checks.push(['★ 催促词「做。」×120 判 L4（真劳累度）', !!t6 && t6.maxRep === 120 && t6.stageName === 'L4',
     t6 ? `maxRep=${t6.maxRep} stage=${t6.stageName}` : '样例缺失']);
 
   // 验收硬指标：给 inflight.ps1 用的紧凑输出必须 ≤ 2 行（"输出增量 < 3 行"）
