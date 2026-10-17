@@ -5,6 +5,8 @@
 > A field report + a protocol. Written after one day of dissecting a failure mode that had
 > quietly killed two of our long-running agent sessions.
 
+[中文版 README](README.zh-CN.md) · [Protocol](PROTOCOL.md) · [Findings](FINDINGS.md) · [Field notes](FIELD-NOTES.md) · [Tool](tools/)
+
 ---
 
 ## The symptom (you have probably seen it)

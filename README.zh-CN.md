@@ -5,7 +5,7 @@
 > 一份实地报告 + 一套处置制度。写于用一整天解剖这个失败模式之后 ——
 > 它已经悄悄杀死了我们两只长会话。
 
-[English README](README.md) · [处置制度 PROTOCOL.md](PROTOCOL.md) · [完整发现 FINDINGS.md](FINDINGS.md)
+[English README](README.md) · [处置制度 PROTOCOL.md](PROTOCOL.md) · [完整发现 FINDINGS.md](FINDINGS.md) · [田野笔记 FIELD-NOTES.md](FIELD-NOTES.md) · [工具](tools/)
 
 ---
 
