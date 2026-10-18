@@ -19,11 +19,38 @@ the session is unusable.
 If that sounds familiar, you are not imagining it, and **it is not your fault, and not the
 agent's fault either.**
 
+> **Two kinds of people read this.**
+>
+> Most people running agents want them fast, and a **"continue" button** is the cheapest way to
+> get that. Nothing in this repository is aimed at them, and nothing here says they are wrong.
+>
+> **This is for the other kind** — the ones who would rather have a slower agent than a
+> burned-out one, and who notice that *"auto-continue"* does not fix the stall, it **hides** it.
+> If you are one of those: the rest of this file is for you.
+>
 > And if you are the human in this picture: **you cannot watch for it.** The failing session we
 > studied wrote 42,771 characters of reasoning in a single step — 9,476 lines, most of them the
 > same two sentences — and hid its own cry for help inside that loop. No one reads that in real time.
 > **A monitoring system is not there to judge the agent. It is there to replace attention, not
 > judgement** — to show you one line at the moment it matters.
+
+### One thing we could not prove
+
+We **suspect** a link between **generation speed** and this failure: a model tuned to answer
+quickly is also a model that is quick to decide *"this turn is done"* — and the premature stop
+is the same reflex that makes it fast. If true, that would explain why **no vendor has fixed it at
+the root**: fixing it means making the flagship model slower, and *"slow"* sells worse than
+*"occasionally stalls"*.
+
+> ⚠️ **We have no evidence for this.** Our logs contain no per-token timing, and no vendor
+> publishes a speed-vs-termination tradeoff. It is a plausible story, not a finding.
+>
+> **If you are reading this and you know of evidence either way** — a paper, a changelog, a
+> benchmark correlating decode speed with turn-completion behaviour, a vendor’s own ablation —
+> **please open an issue and paste it.** A single data point would move this from speculation to a
+> claim, and that would complete a piece this report is currently missing.
+
+---
 
 ## What we found
 
