@@ -34,21 +34,41 @@ agent's fault either.**
 > **A monitoring system is not there to judge the agent. It is there to replace attention, not
 > judgement** — to show you one line at the moment it matters.
 
-### One thing we could not prove
+### What the literature calls it — and the gap we are standing in
 
-We **suspect** a link between **generation speed** and this failure: a model tuned to answer
-quickly is also a model that is quick to decide *"this turn is done"* — and the premature stop
-is the same reflex that makes it fast. If true, that would explain why **no vendor has fixed it at
-the root**: fixing it means making the flagship model slower, and *"slow"* sells worse than
-*"occasionally stalls"*.
+Our symptom has an academic name: **false success** — an agent declaring a task finished,
+confidently and wrongly. Xie et al., *From Confident Closing to Silent Failure: Characterizing
+False Success in LLM Agents* ([arXiv 2606.09863](https://arxiv.org/abs/2606.09863), ICML 2026
+FAGEN workshop) measure it at **45–48% of all failures** on a single-domain tau2-bench split,
+and **75.8%** for a self-evaluating coding agent on AppWorld.
 
-> ⚠️ **We have no evidence for this.** Our logs contain no per-token timing, and no vendor
-> publishes a speed-vs-termination tradeoff. It is a plausible story, not a finding.
->
-> **If you are reading this and you know of evidence either way** — a paper, a changelog, a
-> benchmark correlating decode speed with turn-completion behaviour, a vendor’s own ablation —
-> **please open an issue and paste it.** A single data point would move this from speculation to a
-> claim, and that would complete a piece this report is currently missing.
+> **That paper does not test reasoning effort, thinking budget, latency, or response length.**
+> We grepped the full text: zero hits for any of them. So the phenomenon is *named and measured*,
+> and the axis we keep seeing in our own logs — *how long the model allows itself to think* — is
+> **untested**.
+
+### One hypothesis we could not confirm, and one we had to drop
+
+**Dropped: “fast models stall more.”** We suspected a link between **generation speed** and
+premature stops — a model tuned to answer quickly being quicker to decide *"this turn is done."*
+A targeted literature pass found **no direct evidence either way**, and two pieces of
+counter-evidence: (a) the early-exit literature treats *stopping sooner* as a **win**
+(*Don’t Overthink it*, [arXiv 2505.17813](https://arxiv.org/abs/2505.17813): shorter chains, up
+to **+34.5%** accuracy); (b) every major vendor routes **agentic long-run** work to its
+**slowest, most expensive** setting, not its fastest.
+
+**Still open, and testable: “thinking budget → turn-completion behaviour.”** No paper measures
+whether *lowering* a reasoning budget makes an agent **declare a turn complete earlier**. Proxy
+work exists — *Does Your Reasoning Model Implicitly Know When to Stop Thinking?*
+([arXiv 2602.08354](https://arxiv.org/abs/2602.08354)) argues models *do* know when to stop but
+that the ability is **masked by current sampling paradigms**, comparing greedy decoding against
+`temperature = top_p = 1.0`. That is the closest published link between *decoding settings* and
+*when generation ends* — and it is about the reasoning chain, not agent turns.
+
+> 📣 **If you know of work on this** — a paper, a changelog, an internal ablation, a
+> benchmark that correlates reasoning-budget or decode settings with *turn-completion* rate —
+> **please open an issue and paste it.** One data point would turn this section from a to-do list
+> into a finding.
 
 ---
 
