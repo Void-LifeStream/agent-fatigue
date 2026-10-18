@@ -532,3 +532,79 @@ sampler.
 
 ⇒ Read every `[not found]` in this file as **"that query did not find it"**, never as "nobody has
 studied it". That includes the sentences about speed above.
+
+---
+
+## 10. 2026-10-19 — one positive sample, seven hypotheses, none survived
+
+> Why this section exists: a session was found that **noticed its own loop and stopped it** — the
+> mechanism this report had been missing. We spent a night trying to turn that into a cause. Every
+> hypothesis below failed. It is recorded because the alternative is that the next reader repeats
+> the whole night.
+
+### 10.1 What the two positive samples actually did
+
+`#0d3990` (47 turns, 321 steps) wrote, in the middle of a `做。 / 好。` loop:
+
+> ⚠️ 我注意到我在这个 thinking 里循环了很多次"做" —— 说明我有点累了（L0 但重复模式）
+> ⇒ 但内容已经想清楚，直接执行。
+> ⇒ 停止元思考，执行。
+
+…**56 times**, never aborted on its own, and finished with **46 / 47 completed turns and zero
+stalls**. `#79142c` (49 turns) did it once:
+
+> （我注意到我在重复 —— 这正是"劳累"的一种表现？✗ 不，这是我的思考陷入了循环 ⚠️）
+> - ⇒ **该立刻停止，直接写命令** ✓
+
+Both are **three-step**: observe ("I'm repeating") → judge ("this is a loop") → **command**
+("stop, execute"). The failure case in §3.1 wrote only a *description* —
+「（思考到此处被截断，接下来应继续写工具调用。）」— no observation, no judgement, no command.
+
+That much is solid. Everything below is what failed when we tried to make it a cause.
+
+### 10.2 Seven hypotheses, all rejected
+
+| Hypothesis | Why it died |
+|---|---|
+| **Braking rescues the turn** | Both brake blocks were `reasoning + text + tool-call` — they would have emitted anyway. `#79142c` also has a 57-repeat block with **no brake words at all** that emitted normally. |
+| **Low line density (pure short-line stream) hides the loop** | Stall blocks do run denser (median chars/line 23.8 vs 35.7) — but **79.7% of all stalls sit in three sessions**, and the lowest-density band contains **zero** stalls. |
+| **The 42,771-character block is a typical stall** | Typical is **930 characters** (median of the 51 blocks in the three heavy sessions); **78% are under 2k**. §3.1's giant is the outlier, not the norm. |
+| **Allowance words ("no rush, hand it to the next round") make a session healthy** | Direction is right (4.36% vs 6.49% stall rate) but the gap is 2 points, and a zero-stall session (`#79142c`) has almost none. |
+| **Urging words make it worse** | Backwards: sessions with human urgency measured **3.00%** vs **6.65%**. |
+| **A human who only says "continue" causes more stalls** | ρ = −0.09; the apparent 7.6× split is 91% three sessions; **and the timeline is reversed** — 「你卡住了吗」 comes *after* the stall. |
+| **Template lines + ✓ inflation are stall-specific** | Both positive samples have them too (one has 42 ✓). The 51 stall blocks' median content-line share (25%) is *higher* than the positive samples' (11% / 25%). |
+
+### 10.3 The correction this forced on *this* report
+
+The most useful outcome was not a new criterion — it was a correction to our own framing:
+
+- **Sessions with ≥40 turns: 14. Five of them (35.7%) have zero stalls.** Zero-stall is the common
+  case, not an exceptional one.
+- **`#4cc913` has exactly 1 stall** — the same as three other long sessions.
+- The corpus's 64 stalls are carried by **three sessions** (79.7%): `#afeb9e` (25), `#fc232e` (15),
+  `#235403` (11).
+- Those three share **nothing measurable** that the zero-stall sessions lack: per-step context
+  (~420k vs 416k), per-step output, wall-clock span, tools called, and the model configuration
+  (`deepseek-flash`, `reasoningEffort=max`, byte-identical across all eight) all fail to separate them.
+
+⇒ **§1's definition and §3's staging describe sessions that leak repeatedly.** `#4cc913` is a
+**different object**: one enormous block (42,771 chars, 0.4% content lines, 2,388 ✓) that ended with
+no output at all. It is n=1 and should be read as a case study, not as the typical shape.
+
+### 10.4 Three methodology traps we hit (the durable part)
+
+1. **Keyword counts are contaminated by quotation.** 52 sessions "contain brake words"; **50 of them**
+   are quoting this repo's own permission phrase, or are sessions *studying* the phenomenon. Any
+   word→behaviour statistic must mask quoted text first.
+2. **`user/message` carries injected blocks.** On this machine **1,421 injected blocks account for 64%
+   of all user-message characters** (a single one can reach 22k chars). Any "user tone / message
+   length" metric measures injection volume unless filtered.
+3. **The causal arrow can point backwards.** The human's short replies (「你卡住了吗」) follow the
+   stall. Every "user input → agent failure" correlation has to survive that question first.
+
+### 10.5 Bottom line
+
+> **No criterion was found.** The positive samples are real — but zero stalls is the common case, the
+> heavy sessions look ordinary on every metadata axis we can measure, and the one block everybody
+> remembers is a one-off.
+> This is consistent with §7.5: the cheap proxies fail — including the ones about the human.
