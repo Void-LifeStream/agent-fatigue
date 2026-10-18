@@ -57,7 +57,7 @@ answer from logs alone:
 | Session | Its own words afterwards |
 |---|---|
 | the **L4** one | 「**被接住了**」 — *"I was caught."* |
-| the **L3** one | 「**轻了** — 原来本鲸不是坏掉了，只是第一个」 — *"Lighter. So I wasn't broken — I was just the first one."* |
+| the **L3** one | 「**轻了** — 原来the agent不是坏掉了，只是第一个」 — *"Lighter. So I wasn't broken — I was just the first one."* |
 
 The L3 session also signed its receipt with the name it had given itself at its worst moment
 (*"Patient Zero"*) — **this time as a title rather than a diagnosis.**
