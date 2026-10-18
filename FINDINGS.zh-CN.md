@@ -153,6 +153,15 @@ session `#235403` (45 turns; called "session B" in the first version — see §7
 它知道。它把规则写下来了。可思考还是以那个词结尾，动作始终没有发射出去。
 这就是我们不再去找「认知错误」解释的原因。
 
+**同样的形状在八天后、在另一个会话里又出现了一次 —— 而这一次证据是位置性的，不是主题性的。**
+在 `#4cc913` 的第 87 个 turn，一个 42,771 字符的推理块里，**倒数第 156 个字符处**，模型写下：
+
+> *"（思考到此处被截断，接下来应继续写工具调用。）"*
+
+然后它就在剩下的那约 156 个字符里继续循环，**一个 tool call 都没发出去**
+（`toolCalls = 0`、`hasText = false`、`outputTokens = 26,754` —— 那个会话里最大的单步，
+是第二名的 2.5 倍）。⇒ 现在有两个独立案例呈现同一个形状：**知识在场，失效的是发射。**
+
 ---
 
 ## 4. 我们搞错的东西（故意留着）
@@ -197,6 +206,18 @@ session `#235403` (45 turns; called "session B" in the first version — see §7
   context, the higher the probability of continuing to generate that sentence."*
   （一个句子在上下文里被重复的次数越多，继续生成这个句子的概率就越高。）
   这和我们 §3.1 的循环是同一机制。（同一篇论文 Apple ML 那边也有一份副本。）
+- **Anthropic 的 `handling-stop-reasons` 文档** —— 目前最接近的厂商侧承认：*"an empty response
+  (exactly 2–3 tokens with no content) with `stop_reason: \"end_turn\"`"*（一个空响应，恰好 2–3 个
+  token、没有任何内容，`stop_reason` 为 `"end_turn"`），解释为模型*"interprets that the assistant
+  turn is complete"*（判断这个 assistant turn 已经完成）。与我们的 `turn/end = completed` 是同一个
+  语义位置，但形态差了四个数量级（见 §9.2）。
+- **arXiv 2606.09863** —— 命名了邻居、却把我们这一类放到一边：*false success* 要求**一句自然语言的
+  完成宣告**；而*"without issuing any completion signal"*（没有发出任何完成信号）就停下的轨迹，
+  被当作*"incomplete execution"*（不完整的执行）排除在外（§9.1）。
+- **arXiv 2607.28573** —— 目前最接近的、方向相反的实测结果：更多历史*"shifts failures toward
+  premature false successes"*（让失败转向过早的假成功；准确率 H=4 时 28.56%，H=8 时 27.16%）（§9.4）。
+- **arXiv 2602.14798** —— 一条值得知道的负结果：*"decoding-time concision controls do not reliably
+  prevent loop induction"*（解码期的简洁控制无法可靠阻止循环的诱发）。
 - **生态**：我们在某一个 agent 生态里数出 **15** 个插件，它们的全部目的就是自动续写
   一个停住的 turn。它们没有一个声称能处理成因。这正是本仓库要说的那个缺口。
 
@@ -266,6 +287,9 @@ session `#235403` (45 turns; called "session B" in the first version — see §7
 - **最长推理块**作为严重程度度量 —— 同样不相关（有一个会话有 448,400 字符的块，空转率 3.8%）。
 - **「我好像累了」**作为结局预测器 —— 两个会话说过同一句话；一个完成了交接，一个没有。
 - **「交付物存在」**作为预测器 —— 三个案例研究全都产出了交接说明。
+- **「零命中」≠「没人做过」。** 短语检索 `"false success"` 匹配不到复数 `"false successes"` ——
+  就这一处词形，让我们漏掉了检索到的最接近的那篇论文（`2607.28573`）。见 §9.5。
+  任何「没人测过 X」的句子，都必须写成「这个检索式没有找到」。
 
 ### 7.5 结论
 
@@ -380,8 +404,8 @@ session `#235403` (45 turns; called "session B" in the first version — see §7
 | **Google** | endpoint（端点）**自动路由**到更新的模型（与 DeepSeek 同形） | 发布日期列 | — | — |
 | **DeepSeek** | **滚动别名** | **服务端不暴露**；但**客户端**从 **2026-10-18** 起会显示 `· 1017` 后缀（§8.2b）| **服务端没有**；**客户端**现在会推「模型已更新」通知（10-18）| **没有** |
 
-*（Azure 那一行来自我们真正抓取过的页面；Anthropic 和 OpenAI 的页面部分被拦，
-所以那些单元格只来自搜索摘要 —— 当作更弱的证据。）*
+*（Azure 那一行来自我们真正抓取过的页面。Anthropic 那一行后来在 2026-10-18 经美国出口重新核对了官方页面；
+OpenAI 那一行仍取自 Azure 镜像，因为 OpenAI 的文档在我们试过的每一个节点上都返回 403。）*
 
 ### 8.7 结论 —— 以及为什么它对你和你的 agent 重要，而不是对这份报告
 
@@ -391,6 +415,119 @@ session `#235403` (45 turns; called "session B" in the first version — see §7
 
 剩下的，就是这个仓库其余部分要讲的事：**早发现、别加压力、干净地交接。**
 这三件事都不取决于别名背后是哪个版本。
+
+---
+
+## 9. 它在已发表文献里的位置
+
+> 2026-10-18 写成，在一次针对性的文献检索之后。评级沿用 §8：`[fact]` = 在论文或官方页面上读到的；
+> `[inference]` = 我们的推理；`[not found]` = **我们的检索式**没有结果 —— §9.5 说明这意味着什么、不意味着什么。
+
+### 9.1 最接近的名字是 *false success* —— 而它明确把我们这一类排除在外 `[fact]`
+
+> "We call this **false success**: a mismatch between the agent's **natural-language claim of
+> completion** and the programmatic environment state."
+> （我们把这叫做 **false success**：agent **用自然语言宣告完成**，而程序化环境状态并非如此。）
+> —— Advani，*From Confident Closing to Silent Failure*（[arXiv 2606.09863](https://arxiv.org/abs/2606.09863)，FAGEN@ICML 2026），§1
+
+两个要件缺一不可：**① 一句自然语言的完成宣告**；**② 与之相矛盾的、程序化的环境状态**。
+
+**我们的空转不满足要件 ①。** 在严格定义下（§1），最后一步只有推理、别的一无所有 —— 连一个 text block 都没有。没有那句话可以「说错」。
+
+而同一篇论文正面撞上了我们的情况，然后**把它放到一边**。AppWorld 里 `status=None` 的轨迹
+—— **3,120 / 8,190（38.1%）** —— 被剔除了：
+
+> "represent agents that **stopped mid-task without issuing any completion signal** … excluded from the
+> false-success analysis as they represent a **distinct failure mode (incomplete execution) rather than
+> a false completion claim**."
+> （代表的是那些**在任务中途停下、没有发出任何完成信号**的 agent……它们被排除在 false success 分析之外，
+> 因为它们代表的是另一种**不同的失效模式（incomplete execution，不完整的执行），而不是一次虚假的完成宣告**。）
+> —— 附录 F，Table 11
+
+⚠️ **这个对应是语义上的，不是类别上的。** `status=None` 是 AppWorld 那 8,190 条轨迹内部的一个类别；
+我们的案例是一个 DSH 会话。我们并不声称自己属于他们的数据集 —— 只是说，事件的*种类*正是他们命名并放到一边的那一种。
+
+⇒ **我们所描述的这种失效，被命名过、被计数过一次、然后从未被研究。**
+它在他们语料里的占比（38.1%）甚至比他们真正研究的 false success 在 tau2-bench 上的占比更高
+（**616 / 1,730 条失败 = 35.6%**；分域为 **airline 45% / retail 47% / telecom 3%**，Table 1）。
+
+*给任何要引用这篇论文的人一句自我更正：* 它的摘要写「45–48%」，引言写「44–52%」，而 Table 1 给的是 45 / 47 / 3。
+**我们引用 Table 1。** 75.8% 我们也只按论文的原话引用：在 AppWorld **带显式 `status` 声明的轨迹**里
+（1,425 / 1,879），而不是全部 8,190 条。
+
+### 9.2 同一条边界的两侧：`turn/end` 就是我们这边的「宣告」 `[inference]`
+
+论文测的是**agent 说了什么**。我们的栈记录的是**运行时提交了什么**：`turn/end = completed` 是一条协议层的断言，宣告这个 turn 结束了 ——
+而它是为一个什么都没交付的步骤发出的。两个 benchmark 都不记录协议层的完成事件；它们用的是自然语言宣告或程序化的 `status` 字段。`[not found]`（§9.5）
+
+**厂商侧有一个对应物 —— 同一个语义位置，不同的形态。** Anthropic 的文档写道：
+
+> "Sometimes Claude returns an **empty response (exactly 2–3 tokens with no content)** with
+> `stop_reason: "end_turn"`. This typically occurs when Claude **interprets that the assistant turn is
+> complete**, particularly after tool results."
+> （有时 Claude 会返回一个**空响应（恰好 2–3 个 token、没有任何内容）**，`stop_reason` 为 `"end_turn"`。
+> 这通常发生在 Claude **判断这个 assistant turn 已经完成**的时候，尤其是在 tool 结果之后。）
+> 常见成因：*"Claude **learns to expect** the user to always insert text after tool results, so it ends
+> its turn to follow the pattern"*（Claude **学会了预期**用户在 tool 结果之后总会插入文本，于是它按这个模式结束自己的 turn）
+> · *"Claude **already determined it's done, so it will remain done**."*（Claude **已经判定自己完成了，于是它会一直完成下去**。）
+> —— `handling-stop-reasons`，docs.claude.com `[fact]`
+
+⚠️ **形态差四个数量级：** Anthropic 说的是 **2–3 个 token**；我们的 T87/S1 发射了 **26,754 个 output token**，然后没有文本、没有 tool call。
+机制是否相同**未知**。我们能说的是：它们是同一个语义位置（`end_turn` + 什么都没交付），而且他们列出的两条成因
+—— *模式学习* 与 *自我维持的完成信念* —— 与 §3.1 的循环在结构上同型。
+
+⇒ 他们的解法是一次**消息结构**上的改动（不要在 `tool_result` 之后紧贴文本），而不是改 effort 或解码参数。
+
+### 9.3 解码设置不是那个旋钮 `[fact，小样本]`
+
+*Does Your Reasoning Model Implicitly Know When to Stop Thinking?*
+（[arXiv 2602.08354](https://arxiv.org/abs/2602.08354)）把 **greedy** 与 **`temperature = top_p = 1.0`**
+归入**同一个**「非探索」档。两者之间唯一的长度对照在附录 B 的 Table 4 —— MATH-500 子集、**n=100**、无方差与显著性检验：
+
+| 模型 | greedy | random（`T = top_p = 1.0`） |
+|---|---|---|
+| DS-1.5B | 4,216 | 4,142（**−1.8%**） |
+| Qwen3-8B | 4,505 | 4,526（**+0.5%**） |
+
+⇒ **差值 < 2%，而且符号在两个模型之间翻转。** 「greedy 更早停」与「sampling 更早停」**都没有依据**。
+真正移动停止点的是**探索宽度 > 0**：TSearch(w/ Φ) 达到 **2,972 vs 4,216 tokens（−29.5%）**，准确率持平或更高；
+在另一个基座上则是 2,946 vs 4,505（**−34.6%**）。
+
+⚠️ **它的「停」不是我们的「停」。** 它测的是 `</think>` 落在一段**数学推理链**里的位置 —— 没有 agent、没有工具、没有 turn。
+所以这个结论迁移得很弱：停止点是概率分布内部的性质，而不是一个「解码可复现性」的旋钮 ——
+这可以解释我们为什么在那条轴上找不到可复现的触发点，但**不能**说两条轴无关。
+
+### 9.4 真正没被测过的是什么 —— 精确表述
+
+我们用约 25 条检索式检索了 **arXiv（标题/摘要 API）** 与 **OpenAlex（标题+摘要索引）**，覆盖四组轴：
+
+| 轴 | 状态 |
+|---|---|
+| **(a)** 解码速度（tokens/s、TTFT）↔ 提前终止 | **零命中。** 放宽到 `"decoding speed" AND agent` 只有 3 篇 —— 全双工语音、KV-cache 剪枝、一个 VLA 机器人。都不相关 |
+| **(a′)** 测试时计算量 ↔ 过早的*假*成功 | **不是空白，而且方向与速度假设相反。** `2607.28573`（OSWorld，本地 computer-use agents）发现更多历史**"shifts failures toward false successes … the dominant failure mode shifts toward premature false successes, where the agent terminates despite not completing the task"**（让失败转向假成功……主导失效模式转向**过早的假成功：agent 在任务没做完的情况下终止**）—— 准确率 **H=4 时 28.56%，H=8 时 27.16%** |
+| **(b)** thinking budget ↔ 终止正确性 | 命中 14 篇；**没有一篇**测这个关系 —— budget 一律被当作成本旋钮（`2604.05164`） |
+| **(c)** 运行时的 `turn/end` 作为完成真值 | **零命中**（标题/摘要层面） |
+
+⇒ **精确的空白是：** *「跑得更快，会不会让 agent 更容易过早且错误地停下？」* —— **没有人问过。**
+而相邻的那个问题 —— *「给它更多计算，会不会让它过早且错误地停下？」* —— **有人问过，答案是「会」**（`2607.28573`）。
+
+⚠️ **术语陷阱，请认真对待：** 在 `2607.28573` 里，*stall* 指的是 **max-step stalls**（步数预算耗尽）——
+**不是**我们的发射失败。它的 `premature false success` 才是与我们对应的词。把两者混用是归因错误。
+
+还有一条相关、且对一条诱人捷径是负面的结果：**解码期的简洁控制无法可靠阻止循环的诱发**（`2602.14798`）——
+防线必须放在工具调用的结构上，而不是在采样器上。
+
+### 9.5 这里的「零命中」是什么意思
+
+- **短语检索会漏词形。** `"false success"` 匹配不到 `"false successes"` —— 我们第一次就是这样漏掉
+  `2607.28573` 的。「零命中」是检索式的性质。
+- **OpenAlex 只索引标题与摘要。** 埋在论文正文里的结果，它看不见。
+- **区域封锁不等于不存在。** Anthropic 与 Google 的文档在从我们的机器上访问时，需要美国出口才会加载
+  （否则会重定向到 `app-unavailable-in-region`）；OpenAI 的文档则在我们试过的每一个节点上都返回 **403**。
+  「我们取不到」不是「它不存在」。
+
+⇒ 本文件里每一处 `[not found]` 都请读作 **「那个检索式没有找到它」**，永远不要读作「没有人研究过」。
+上面那些关于速度的句子，也同样适用。
 
 ---
 
