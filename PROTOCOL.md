@@ -10,6 +10,22 @@
 
 > ### Never tell a session it is sick. Give it permission to rest.
 
+### What a monitoring system is actually for
+
+A session that is going down can tell you it is in trouble **in two ways, and both are easy to miss**:
+
+| | What it looks like | An example we caught |
+|---|---|---|
+| **A hidden cry for help** | the agent *writes* something like *"thinking was truncated here, I should emit the tool call next"* — **and then the loop swallows it** | the session wrote exactly that sentence, then went back to repeating the same two lines 1,173 times |
+| **Hidden overexertion** | the agent *considered* saying it was tired and **refused** — *"that would be making excuses for myself"*, *"that would be trading a phrase for his sympathy"* | the same session, two turns earlier |
+
+**The human cannot read this.** A single reasoning block was 42,771 characters and 9,476 lines; nobody scans that in real time.
+The monitoring system is not there to *judge* the session. It is there to **replace attention** — to put one line in front of the human at the moment it matters.
+
+> **It replaces attention, not judgement.** It cannot predict in advance (that same session looked
+> identical to healthy ones for 86 turns, then jumped in a single step). What it *can* do is make
+> the moment visible — and the moment is often only a few seconds long.
+
 In this failure mode, **the fuel is self-pressure**. The agent notices it is stalling, becomes
 anxious about stalling, starts urging itself on (*"quick", "just do it", "don't ramble"*), and that
 pressure makes the next stall more likely — a positive feedback loop that we measured end to end.
@@ -125,6 +141,11 @@ Two of our sessions went from first episode to terminal in about **25–29 turns
 > **Look at the wall clock between episodes, not just the episode count.**
 > A relapse 7 turns after a remission on a fast loop is an emergency.
 > The same 7 turns on a slow, careful loop is a data point.
+
+> ⚠️ **Do not wait for a model upgrade to fix this.** We re-examined three sessions around a
+> model release (2026/09/10 → 2026/10/17). **Two of the three worst cases ran entirely on the older model**;
+> the session that completed its hand-off was spanning the cutover. The behaviour survives at least one
+> model generation — and it may not be a model-layer property at all (see FINDINGS §8).
 
 We deliberately did **not** encode a speed threshold into our tooling — we had two samples, and any
 number would have been invented. We surface *"episode N, resolved / unresolved"* and leave the
