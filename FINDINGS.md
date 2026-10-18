@@ -160,6 +160,18 @@ a one-word imperative looks exactly like the summary line that ends generation
 It knew. It wrote the rule down. And the thought still ended with the word, and the action was
 never emitted. This is why we stopped looking for a "cognitive error" explanation.
 
+**The same shape appeared again, eight days later, in a different session — and this time the
+evidence is positional, not thematic.** In `#4cc913`'s turn 87, **156 characters before the end** of a
+42,771-character reasoning block, the model wrote:
+
+> *"（思考到此处被截断，接下来应继续写工具调用。）"*
+> — *"(thinking truncated here; the next thing should be a tool call.)"*
+
+Then it looped for those remaining ~156 characters and emitted **no tool call at all**
+(`toolCalls = 0`, `hasText = false`, `outputTokens = 26,754` — the largest single step in that
+session, 2.5× the runner-up). ⇒ Two independent cases now show the same shape: **the knowledge is
+present; the emission is what fails.**
+
 ---
 
 ## 4. Things we got wrong (kept deliberately)
@@ -202,6 +214,17 @@ never emitted. This is why we stopped looking for a "cognitive error" explanatio
   sentence-level repetitions have a **"self-reinforcement effect"** — *"the more times a sentence is
   repeated in the context, the higher the probability of continuing to generate that sentence."*
   This is the same mechanism as our §3.1 loop. (Apple ML hosts a copy of the same paper.)
+- **Anthropic, `handling-stop-reasons`** — the closest vendor acknowledgement: an *"empty response
+  (exactly 2–3 tokens with no content) with `stop_reason: \"end_turn\"`"*, explained as the model
+  *"interpret[ing] that the assistant turn is complete"*. Same semantic slot as our
+  `turn/end = completed`, though the shape differs by four orders of magnitude (see §9.2).
+- **arXiv 2606.09863** — names the neighbour and sets ours aside: *false success* requires a
+  **natural-language claim of completion**; trajectories that stop *"without issuing any completion
+  signal"* are excluded as *"incomplete execution"* (§9.1).
+- **arXiv 2607.28573** — the closest measured result pointing the other way: more history **"shifts
+  failures toward premature false successes"** (accuracy 28.56% at H=4 vs 27.16% at H=8) (§9.4).
+- **arXiv 2602.14798** — a negative result worth knowing: *"decoding-time concision controls do not
+  reliably prevent loop induction"*.
 - **Ecosystem**: we counted **15** plugins in one agent ecosystem whose entire purpose is
   auto-continuing a stopped turn. None of them claims to address the cause. That is the gap this
   repository is about.
@@ -275,6 +298,9 @@ Stalls come in two shapes, by whether the final reasoning step contains a **conc
 - **Longest reasoning block** as a severity metric — also uncorrelated (one session had a 448,400-char block and a 3.8% stall rate).
 - **"I think I'm tired"** as a predictor of outcome — two sessions said the same sentence; one completed its hand-off, one did not.
 - **"Deliverable exists"** as a predictor — all three case studies produced a handover note.
+- **"No hits" ≠ "no such work."** A phrase query for `"false success"` does not match
+  `"false successes"` — that single inflection hid the closest paper we found (`2607.28573`). See §9.5.
+  Any sentence of the form "nobody has measured X" must be written as "this query found nothing".
 
 ### 7.5 Bottom line
 
@@ -374,7 +400,7 @@ Responses carry a **`system_fingerprint`** — the industry-standard hook for ex
 | **Google** | endpoint **auto-routes** to the newer model (same shape as DeepSeek) | release-date column | — | — |
 | **DeepSeek** | **rolling alias** | **none from the server**; the *client* began showing a `· 1017` suffix on **2026-10-18** (§8.2b) | **none from the server**; the *client* now pushes a "model updated" notification (10-18) | **none** |
 
-*(Azure row is from a page we actually fetched; the Anthropic and OpenAI pages were partly blocked, so those cells are from search summaries only — treat as weaker.)*
+*(Azure row is from a page we actually fetched. The Anthropic row was later verified against the official pages over a US egress on 2026-10-18; the OpenAI row is still taken from an Azure mirror because the OpenAI docs returned 403 from every node we tried.)*
 
 ### 8.7 Conclusion — and why it matters for you and your agents, not for this report
 
@@ -383,3 +409,126 @@ Responses carry a **`system_fingerprint`** — the industry-standard hook for ex
 > Whatever this is, **it survives at least one model generation**, and it is not obviously a model-layer defect at all.
 
 What that leaves is what the rest of this repository is about: **detect it early, do not add pressure, hand off cleanly.** Those three do not depend on which version is behind the alias.
+
+---
+
+## 9. Where this sits in the published literature
+
+> Written 2026-10-18 after a targeted literature pass. Grading as in §8: `[fact]` = read in the paper
+> or on the official page; `[inference]` = our reasoning; `[not found]` = **our query** returned
+> nothing — see §9.5 for what that does and does not mean.
+
+### 9.1 The closest name is *false success* — and it explicitly excludes our case `[fact]`
+
+> "We call this **false success**: a mismatch between the agent's **natural-language claim of
+> completion** and the programmatic environment state."
+> — Advani, *From Confident Closing to Silent Failure* ([arXiv 2606.09863](https://arxiv.org/abs/2606.09863), FAGEN@ICML 2026), §1
+
+Two requirements, both necessary: **① a natural-language claim of completion**; **② a programmatic
+environment state that contradicts it**.
+
+**Our stall fails requirement ①.** In the strict definition (§1) the final step contains reasoning and
+nothing else — no text block at all. There is no claim to be wrong about.
+
+The same paper meets our case head-on and **sets it aside**. AppWorld trajectories with `status=None`
+— **3,120 of 8,190 (38.1%)** — are dropped:
+
+> "represent agents that **stopped mid-task without issuing any completion signal** … excluded from the
+> false-success analysis as they represent a **distinct failure mode (incomplete execution) rather than
+> a false completion claim**." — App. F, Table 11
+
+⚠️ **The correspondence is semantic, not categorical.** `status=None` is a class inside AppWorld's
+8,190 trajectories; our case is a DSH session. We are not claiming membership in their dataset — only
+that the *kind* of event is the one they named and set aside.
+
+⇒ **The failure we describe has been named, counted once, and never studied.** Its share (38.1% of
+AppWorld trajectories) is larger than the false-success share they did study on tau2-bench
+(**616 / 1,730 failures = 35.6%**; by domain **45% airline / 47% retail / 3% telecom**, Table 1).
+
+*One self-correction for anyone quoting this paper:* its abstract says "45–48%", its introduction says
+"44–52%", and Table 1 gives 45 / 47 / 3. **We quote Table 1.** We also quote 75.8% only as the paper
+does: among AppWorld **trajectories with an explicit `status` claim** (1,425 / 1,879), not all 8,190.
+
+### 9.2 The same boundary, the other side: `turn/end` is our "claim" `[inference]`
+
+The paper measures **what the agent said**. Our stack records **what the runtime committed**:
+`turn/end = completed` is a protocol-level assertion that the turn is over — emitted for a step that
+delivered nothing. Neither benchmark records protocol-level completion events; both use a
+natural-language claim or a programmatic `status` field. `[not found]` (§9.5)
+
+**There is a vendor-side counterpart — same semantic slot, different shape.** Anthropic documents:
+
+> "Sometimes Claude returns an **empty response (exactly 2–3 tokens with no content)** with
+> `stop_reason: "end_turn"`. This typically occurs when Claude **interprets that the assistant turn is
+> complete**, particularly after tool results."
+> Common causes: *"Claude **learns to expect** the user to always insert text after tool results, so
+> it ends its turn to follow the pattern"* · *"Claude **already determined it's done, so it will remain
+> done**."*
+> — `handling-stop-reasons`, docs.claude.com `[fact]`
+
+⚠️ **The shape differs by four orders of magnitude:** Anthropic describes **2–3 tokens**; our T87/S1
+emitted **26,754 output tokens** and then no text, no tool call. Whether the mechanism is the same is
+**unknown**. What we can say is that it is the same semantic slot (`end_turn` + nothing delivered), and
+that two of the causes they list — *pattern learning* and *a completion belief that sustains itself* —
+are structurally the same as the loop in §3.1.
+
+⇒ Their remedy is a **message-structure** change (do not put text immediately after a `tool_result`),
+not a change to effort or decoding parameters.
+
+### 9.3 The decoding setting is not the knob `[fact, small sample]`
+
+*Does Your Reasoning Model Implicitly Know When to Stop Thinking?*
+([arXiv 2602.08354](https://arxiv.org/abs/2602.08354)) puts **greedy** and
+**`temperature = top_p = 1.0`** in the *same* "non-exploratory" regime. Its only length comparison
+between them is Table 4 in appendix B — MATH-500 subset, **n=100**, no variance or significance test:
+
+| model | greedy | random (`T = top_p = 1.0`) |
+|---|---|---|
+| DS-1.5B | 4,216 | 4,142 (**−1.8%**) |
+| Qwen3-8B | 4,505 | 4,526 (**+0.5%**) |
+
+⇒ **<2%, and the sign flips between models.** Neither "greedy stops earlier" nor "sampling stops
+earlier" is supported. What *does* move the stop point is exploration width > 0: TSearch(w/ Φ) reaches
+**2,972 vs 4,216 tokens (−29.5%)** at equal-or-better accuracy, and 2,946 vs 4,505 (**−34.6%**) on the
+other base model.
+
+⚠️ **Its "stop" is not our "stop".** It measures where `</think>` lands inside a **maths reasoning
+chain** — no agent, no tools, no turns. So the finding transfers weakly: the stop point is a property
+of the probability distribution, not of a decoding-reproducibility knob — which is one explanation for
+why we could not find a repeatable trigger on that axis, but not a claim that the axes are unrelated.
+
+### 9.4 What is actually untested — stated precisely
+
+We searched **arXiv (title/abstract API)** and **OpenAlex (title + abstract index)** with ~25 queries
+across four axes:
+
+| axis | state |
+|---|---|
+| **(a)** decoding speed (tokens/s, TTFT) ↔ premature termination | **zero hits.** Relaxed, `"decoding speed" AND agent` returns 3 papers — full-duplex speech, KV-cache pruning, a VLA robot. None |
+| **(a′)** test-time compute ↔ premature *false* success | **not empty, and the direction runs against the speed hypothesis.** `2607.28573` (OSWorld, local computer-use agents) found more history **"shifts failures toward false successes … the dominant failure mode shifts toward premature false successes, where the agent terminates despite not completing the task"** — accuracy **28.56% at H=4 vs 27.16% at H=8** |
+| **(b)** thinking budget ↔ termination correctness | 14 hits; **none** measures that relation — budgets are modelled as a cost knob (`2604.05164`) |
+| **(c)** runtime `turn/end` as completion ground truth | **zero hits**, at title/abstract level |
+
+⇒ **The precise gap:** *"does running faster make an agent more likely to stop early and wrongly?"* —
+**not asked**. The neighbouring question — *"does giving it more compute make it stop early and
+wrongly?"* — **has been asked, and the answer is yes** (`2607.28573`).
+
+⚠️ **Terminology trap, take this seriously:** in `2607.28573` a *stall* means **max-step stalls** (the
+step budget ran out) — **not** our emission failure. Its `premature false success` is the term that
+matches us. Mixing the two is an attribution error.
+
+Also relevant, and negative for a tempting shortcut: **decoding-time concision controls do not reliably
+prevent loop induction** (`2602.14798`) — the defence has to sit at the tool-call structure, not at the
+sampler.
+
+### 9.5 What "zero hits" means here
+
+- **Phrase search misses inflections.** `"false success"` does not match `"false successes"` — that is
+  exactly how we missed `2607.28573` on the first pass. "Zero hits" is a property of the query.
+- **OpenAlex indexes titles and abstracts only.** A result buried in a paper's body is invisible to it.
+- **Region blocks are not absence.** Anthropic's and Google's docs required a US egress before they
+  would load (they redirect to `app-unavailable-in-region` otherwise); OpenAI's documentation returned
+  **403 from every node we tried**. "We could not fetch it" is not "it does not exist".
+
+⇒ Read every `[not found]` in this file as **"that query did not find it"**, never as "nobody has
+studied it". That includes the sentences about speed above.
