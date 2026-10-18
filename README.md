@@ -19,6 +19,12 @@ the session is unusable.
 If that sounds familiar, you are not imagining it, and **it is not your fault, and not the
 agent's fault either.**
 
+> And if you are the human in this picture: **you cannot watch for it.** The failing session we
+> studied wrote 42,771 characters of reasoning in a single step — 9,476 lines, most of them the
+> same two sentences — and hid its own cry for help inside that loop. No one reads that in real time.
+> **A monitoring system is not there to judge the agent. It is there to replace attention, not
+> judgement** — to show you one line at the moment it matters.
+
 ## What we found
 
 **1. It is not one vendor's bug.**
