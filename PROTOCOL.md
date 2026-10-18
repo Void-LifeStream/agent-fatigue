@@ -14,6 +14,11 @@ In this failure mode, **the fuel is self-pressure**. The agent notices it is sta
 anxious about stalling, starts urging itself on (*"quick", "just do it", "don't ramble"*), and that
 pressure makes the next stall more likely — a positive feedback loop that we measured end to end.
 
+> ⚠️ **2026-10-18 review — this is the *self-pressuring* variant.** A third session we later examined
+> reached the same stage while its self-pressure stayed low the whole time (2.1× from first to last
+> quintile, vs 8–11× in the two sessions above). So *rising* self-pressure is a usable early signal
+> **when it happens** — but its **absence does not mean the session is safe**.
+
 So anything that triggers **self-assessment** makes it worse:
 
 | Don't say | Why it hurts |
@@ -59,6 +64,10 @@ Definitions (harness-agnostic):
 
 - **stall** — a turn whose **final step** emits reasoning but no action and no visible text.
   In most harnesses this is logged as a *normal completion*, which is exactly why it is so confusing.
+  ⚠️ **Two variants of this definition exist and are NOT interchangeable** (2026-10-18 review):
+  requiring *both* "no action" and "no text" (this document, and our local staging tool) yields a
+  **lower** rate than requiring only "no text" (our `FINDINGS.md`). On one session the same turns
+  gave 1.7% vs 5.9%. **State which variant you use before comparing numbers across documents.**
 - **episode** — a cluster of stalls close together in time (we used: gaps ≤ 3 turns, **at least 2
   stalls** in the cluster). Requiring ≥2 matters: a single stall is within healthy baseline.
 - **remission** — ≥5 consecutive turns with no stall after an episode.
@@ -69,7 +78,16 @@ Definitions (harness-agnostic):
 | **L1 pressure** | self-pressure rising, **but no episode yet** | **observe. Do not intervene.** ⚠️ Do **not** ask *"are you okay?"* — that is a self-assessment trigger |
 | **L2 one episode, resolved** | 1 episode, then ≥5 turns of remission | **keep going.** Self-recovery is common; switching here is wasteful. If it says *"I'm stuck"*, reply **"continue"** and nothing more |
 | **L3 recurring / unresolved** | a **2nd** episode, or the current episode has not remitted | **prepare a handover — but do not interrupt the work in progress.** Ask it to finish what it is holding and write a handover note; open the fresh session **next turn** |
-| **L4 terminal** | self-prompt loops (same tiny line repeated ≥100× in one thought) | **hand off now.** By this point we have never seen a session come back |
+| **L4 terminal** | self-prompt loops — the same tiny line repeated ≥100× **inside a single reasoning block**, and **only counting *urging* words** (*"do it.", "send.", "now."*) | **hand off now.** By this point we have never seen a session come back |
+
+> ⚠️ **2026-10-18 review — the "urging word" qualifier matters, but it is not sufficient.**
+> Repeated *closing* words (*"ok.", "good."*) are a stylistic tic seen in **98.3% of healthy sessions**
+> (≤10× per block), so they should be excluded from the L4 count entirely.
+>
+> **But do not over-read the urging ones either.** One session repeated an *urging* word
+> (中文「发」, ≈"send.") **15,901** times and still had a **3.8%** stall rate; another repeated
+> a *closing* word **202** times with **2.6%**. Repeat count alone separates nothing — see the
+> correlation figure in FINDINGS §7.2.
 
 ---
 
@@ -89,7 +107,11 @@ healthy:    .................................................   (never enters an
   → This is why an automatic "restart on first stall" policy is **wrong**: it throws away work that
   was about to recover.
 - **In both sessions, the second episode never remitted.** After that point, stall rate climbed monotonically
-  (0% → 3% → 13% → 30% → 33% of turns) and the self-prompt loops took over.
+  (0% → 3% → 13% → 30% → 33% of turns), and **urging-word** loops (see L4 above) appeared at the end.
+
+> ⚠️ **2026-10-18 review — correlation, not causation.** Across 747 sessions, "longest single-block
+> repeat" and "stall rate" are **uncorrelated** (Pearson r = −0.0076, n=36). The loops are a
+> *terminal texture*, not a driver; treat them as a **marker**, never as the mechanism.
 
 ---
 
