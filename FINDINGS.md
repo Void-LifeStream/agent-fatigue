@@ -379,7 +379,7 @@ Responses carry a **`system_fingerprint`** — the industry-standard hook for ex
 ### 8.7 Conclusion — and why it matters for you and your agents, not for this report
 
 > **Do not wait for a model upgrade to fix this.**
-> Two of our worst cases predate the current release, and the session that completed its hand-off was already spanning the cutover.
+> Two of our worst cases predate the current release; a third was already spanning the cutover — though with the ±1-day uncertainty in that boundary date noted in **§8.2b**, "spanning" is the strongest word we can honestly use for it.
 > Whatever this is, **it survives at least one model generation**, and it is not obviously a model-layer defect at all.
 
 What that leaves is what the rest of this repository is about: **detect it early, do not add pressure, hand off cleanly.** Those three do not depend on which version is behind the alias.
