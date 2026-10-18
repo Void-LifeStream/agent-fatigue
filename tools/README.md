@@ -91,3 +91,35 @@ uncorrelated, r = −0.0076), which is the main reason they are worth keeping.
 > ⚠️ They assume this harness’s log format (multi-frame zstd, cut on the magic bytes
 > `28 B5 2F FD`), and they hardcode the `~/.dsh/sessions` root. If your store lives elsewhere,
 > the `root` constant and the frame-splitting helper are the two things to change.
+
+---
+
+## Per-session drill-down (added 2026-10-18)
+
+The three surveys above answer **population** questions. These two open **one** session and show
+its shape — they are how the case studies in §7 were read, and how the "it knew, it wrote the rule
+down, and it still stopped" observation was found.
+
+| script | measures | output |
+|---|---|---|
+| `analyze-stall.cjs` | steps, `turn/end` kinds, largest reasoning block, stall-shaped steps, optional repeat-marker count, per-turn summary | one report for one session |
+| `dump-step.cjs` | one assistant message: block types, token usage, head/tail of the reasoning, claim-word counts, last 12 non-empty lines | one block of text |
+
+```bash
+node analyze-stall.cjs <session.v4.jsonl.zstd> [--count "some string"]
+node dump-step.cjs <session.v4.jsonl.zstd> <turn> <step> [--claims "a,b,c"] [--head N] [--tail N]
+```
+
+Both are read-only and dependency-free. `analyze-stall.cjs` takes `--count` as an **arbitrary**
+repeat marker: the string you pass is counted per reasoning block and totalled, so nothing about a
+particular language or case study is baked in. `dump-step.cjs` requires `<turn> <step>` explicitly
+(no default case), and its claim-word list is a plain `--claims` CSV with an English default.
+
+> ⚠️ **`dump-step.cjs` prints raw reasoning text.** It is meant for reading your own logs; redact
+> before pasting its output anywhere public.
+
+**Why drill-down rather than more surveys.** A population statistic tells you a signal is
+uninformative (e.g. repeat count vs stall rate, r = −0.0076). It cannot tell you *what the step
+looked like*. The most useful single observation in §7 — a model writing
+`(truncated here, next I should continue with the tool call)` and then continuing its loop instead —
+only exists at this level, and no aggregate over 745 sessions would have surfaced it.
