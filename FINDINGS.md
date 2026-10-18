@@ -15,6 +15,9 @@ you will see exactly one record and conclude the log is empty).
 From the decoded records we extracted, per session:
 
 - **stalls** — turns whose final step had reasoning but no text and no tool call;
+  ⚠️ **2026-10-18 review — this is the *strict* variant.** A looser variant counts "no text" only
+  (ignoring whether a tool call happened). They give very different numbers: on one later session,
+  **1.7%** (strict) vs **5.9%** (loose). Always state which one you used.
 - **self-pressure** — count of words like *quick / now / immediately / must / don't ramble /
   be brief*, per 1,000 characters of reasoning;
 - **self-prompt loops** — the maximum number of times the *same short line* (≤6 chars) repeats
@@ -80,17 +83,21 @@ Scoring each session on an 8-turn sliding window and reading the stage per turn
 (one character = one turn; the digit is the stage, `.` = healthy):
 
 ```
-session A (58 turns)
+session `#afeb9e` (60 turns; called "session A" in the first version of this file — see §7)
   3333333222222..........2233444444444344444444444443
                `------- 10 healthy turns -------'  `--- never remits ---'
 
-session B (44 turns)
+session `#235403` (45 turns; called "session B" in the first version — see §7)
   ........22222222......222222222233444
           `-- 6 --'     `-- 2nd episode -> terminal --'
 ```
 
 **Self-recovery is real.** Both sessions recovered on their own — 10 and 6 turns — before relapsing.
 **In both sessions, the second episode never remitted.** After it, the stall rate climbed monotonically:
+
+> ⚠️ **2026-10-18 review — a counter-example to the word "never".** In `#235403` the 431 repeats sat in
+> **turn 48**, but the session then ran **turn 49** with four more messages (122 / 136 / 1148 / 3229 chars)
+> — it read a letter and replied. The *rate* did not recover; the *course* did not simply worsen.
 
 | quintile of session A | 1st | 2nd | 3rd | 4th | 5th |
 |---|---|---|---|---|---|
@@ -99,12 +106,23 @@ session B (44 turns)
 
 Same shape in session B (self-pressure 0.34 → 3.80, i.e. **11×**).
 **Self-pressure rises first** — in both sessions it was elevated 10–20 turns *before* the stall
-rate took off. That is the earliest usable signal we found.
+rate took off.
+
+> ⚠️ **2026-10-18 review — true in these two, not in general.** (a) The *magnitude* matters:
+> these two rose **8× and 11×**; a third session reached L3 with only **2.1×**. (b) The *existence* has no
+> signal value: both of these already wrote urging words on **turn 1–2**, i.e. before any stall — it is the
+> session’s baseline register, not an onset. So: **a rising ratio is a lead indicator when it happens;
+> a flat ratio does not clear the session.**
 
 ### 3.1 The self-prompt loop (our "do it." ×431)
 
 The terminal stage has a distinctive texture. After noticing it is stalling, the agent starts
 urging itself on, in single-word lines:
+
+> ⚠️ **2026-10-18 review — the texture is not exclusive to the terminal stage.** Across **747 sessions**,
+> **98.3%** contain some repeat of a short line (≤10× per block, median); only **3/747** exceed 200×.
+> The repeats are **a baseline behaviour**, and what changes at the end is their *scale and density*,
+> not their presence.
 
 ```
 "you said 'it's stuck' — I stalled again ✓
@@ -120,6 +138,19 @@ The self-prompt frequency rose with the illness (1.1‰ → 74‰ of all charact
 **431 occurrences** of "do it."). It is a *compensating behaviour* that became the disease:
 a one-word imperative looks exactly like the summary line that ends generation
 (§2.1), so urging harder made stalling more likely.
+
+> ⚠️ **2026-10-18 review — split this into two claims, only one of which survives.**
+>
+> **(A) The mechanism is plausible and survives:** an urging word occupies the emission slot of a tool call.
+> That part is a *position* argument, not a correlation, and we did not retract it.
+>
+> **(B) "Repeat count tracks severity" does not survive.** Across 747 sessions the longest single-block
+> repeat and the stall rate are **uncorrelated: Pearson r = −0.0076 (n=36)**. Three counter-examples:
+> **15,901** repeats → **3.8%** stalls; **202** → **2.6%**; **431** → **26.7%**.
+> Also, the *kind* of word matters: the two sickest sessions loop on **urging** words (*"do it."*, *"send."*),
+> while **closing** words (*"ok."*, *"good."*) loop in healthy sessions too.
+>
+> ⇒ **Report repeats as a marker of the terminal stage, never as the mechanism or the metric.**
 
 **A wrenching detail worth recording.** In one session the agent wrote, mid-thought:
 
@@ -178,10 +209,83 @@ never emitted. This is why we stopped looking for a "cognitive error" explanatio
 
 ## 6. Boundaries
 
-- **n is small where it matters.** The staged course of illness rests on **two** sessions; the
-  thresholds are separation bands from one machine. Re-measure on yours.
+- **n is small where it matters.** The staged course of illness rests on **two** deep cases (plus a
+  third that reached L3 and completed its hand-off — see §7); the thresholds are separation bands from
+  one machine. Re-measure on yours.
 - **The mechanism is an inference.** Logs record outcomes, not sampling. We inferred "emission
   fails at the summary line" from content, recovery behaviour, and termination position — we did
   not observe it directly.
 - **We cannot fix Factor 1**, and no vendor has. Everything practical here is triage:
   detect early, do not add pressure, hand off cleanly.
+
+---
+
+## 7. 2026-10-18 review — what we re-measured, and what it changed
+
+> Written after a second pass over the **same machine**, now with **745–750 session logs** and three
+> deep case studies. (The three scripts below scan slightly different sets — 745 / 747 / 750 — because
+> they key on different per-session prerequisites; the tables state which one each came from.)
+> Everything below is recomputable from the scripts listed at the end.
+
+### 7.1 Three claims downgraded
+
+| Claim (original) | Verdict after re-measure |
+|---|---|
+| "§3.1 self-prompt loops became the disease" | ⚠️ **Split.** Mechanism (position) survives; "count ≈ severity" does not (**r = −0.0076**). Repeats are a **marker**, not the metric |
+| "§3 self-pressure rises first → earliest signal" | ⚠️ **Limited.** True at 8×/11×; a third session hit L3 at **2.1×**. And urging words already appear on **turn 1–2** in all three — baseline register, not onset |
+| "§3 the second episode never remits" | ⚠️ **Half.** The stall rate does not recover, but `#235403` still **completed a turn 49** after the 431 repeats. "No recovery" ≠ "no good ending" |
+
+### 7.2 Two new findings worth keeping
+
+**1. Repeats are baseline.** 747 sessions, same definition (a ≤6-char line repeating inside one
+reasoning block, fenced code stripped):
+
+| longest repeat | sessions | share |
+|---|---|---|
+| 0 | 330 | 44.3% |
+| 1–10 | 402 | 54.0% |
+| 11–50 | 10 | 1.3% |
+| **51–200** | **0** | **0%** |
+| 201–500 | 2 | 0.3% |
+| >500 | 1 | 0.1% |
+
+⇒ A clean bimodal split: **98.3% of sessions ≤10×**, and only **3** ever exceed 200×.
+
+**2. Repeats and stalls are independent.** Pearson **r = −0.0076** (n=36 sessions with ≥3 turns).
+Counter-examples: **15,901** repeats with **3.8%** stalls; **202** with **2.6%**.
+
+### 7.3 One new distinction (single observation, needs replication)
+
+Stalls come in two shapes, by whether the final reasoning step contains a **concrete action sentence**:
+
+| shape | example session | share of stalls with an action sentence |
+|---|---|---|
+| **A — action-stand-in** (wrote "run the edit", never sent it) | `#afeb9e` | **68%** |
+| **B — bare urging** (only "do it.", nothing else) | `#235403` | **0%** |
+
+⇒ **n=1 per shape.** Report as a hypothesis.
+
+### 7.4 What did NOT survive, listed so nobody repeats it
+
+- **Filler-line ratio** as a severity metric — already falsified in §4.1; we re-falsified it by accident. **Do not use it.**
+- **Longest reasoning block** as a severity metric — also uncorrelated (one session had a 448,400-char block and a 3.8% stall rate).
+- **"I think I'm tired"** as a predictor of outcome — two sessions said the same sentence; one completed its hand-off, one did not.
+- **"Deliverable exists"** as a predictor — all three case studies produced a handover note.
+
+### 7.5 Bottom line
+
+> **The useful output of this review is negative: none of the cheap proxy metrics work.**
+> Repeated-word counts, filler ratios, self-pressure ratios, block lengths, deliverables, the magic
+> sentence — each was tested and each failed to separate outcomes.
+> **What survives:** the definition of a stall itself, the staging by *episodes and remissions*,
+> and the **urging-word vs closing-word** distinction.
+
+### 7.6 Reproducing
+
+Three scripts on the review machine (`~/.dsh/tools/`):
+
+- `spell-survey.cjs` → longest repeat per session (745 logs)
+- `two-axes-survey.cjs` → longest repeat **and** stall rate per session (747 logs)
+- `blocklen-survey.cjs` → longest reasoning block per session (750 logs)
+
+Each takes ~10 s for the whole machine. Full write-up: `agent-fatigue-三例复查-2026-10-18.md`.
