@@ -69,3 +69,25 @@ This implementation reads a local roster (DSH keeps one) to learn which sessions
   *the raw data stays complete; only the display layer filters*;
 - if the roster cannot be read, it falls back to the old behaviour and **reports more, never
   less** (when uncertain, always choose the conservative side).
+
+---
+
+## Corpus survey scripts (added 2026-10-18)
+
+`session-signals.cjs` scores **one** session. These three scan a **whole session store** and answer
+population questions — what is normal, what is rare, and whether two signals move together.
+
+| script | measures | output |
+|---|---|---|
+| `spell-survey.cjs` | longest repeat of a short line (≤6 chars, inside one reasoning block, fenced code stripped) | one row per session |
+| `two-axes-survey.cjs` | the same repeat **plus** the stall rate, per session | one row per session |
+| `blocklen-survey.cjs` | longest single reasoning block, in characters | one row per session |
+
+Run with `node <script> --out <file.tsv>`; all three default to `~/.dsh/sessions` and finish the
+whole store in about ten seconds. They are what produced the population numbers in
+`../FINDINGS.md` §7 — including the negative results (repeat count and stall rate are
+uncorrelated, r = −0.0076), which is the main reason they are worth keeping.
+
+> ⚠️ They assume this harness’s log format (multi-frame zstd, cut on the magic bytes
+> `28 B5 2F FD`), and they hardcode the `~/.dsh/sessions` root. If your store lives elsewhere,
+> the `root` constant and the frame-splitting helper are the two things to change.
