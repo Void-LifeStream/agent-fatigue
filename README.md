@@ -34,36 +34,57 @@ agent's fault either.**
 > **A monitoring system is not there to judge the agent. It is there to replace attention, not
 > judgement** — to show you one line at the moment it matters.
 
-### What the literature calls it — and the gap we are standing in
+### What the literature calls it — and why our case sits just outside it
 
-Our symptom has an academic name: **false success** — an agent declaring a task finished,
-confidently and wrongly. Xie et al., *From Confident Closing to Silent Failure: Characterizing
-False Success in LLM Agents* ([arXiv 2606.09863](https://arxiv.org/abs/2606.09863), ICML 2026
-FAGEN workshop) measure it at **45–48% of all failures** on a single-domain tau2-bench split,
-and **75.8%** for a self-evaluating coding agent on AppWorld.
+The closest published name for this failure is **false success** — an agent asserting completion
+while the environment says otherwise. Laksh Advani, *From Confident Closing to Silent Failure*
+([arXiv 2606.09863](https://arxiv.org/abs/2606.09863), ICML 2026 FAGEN workshop), measures it at
+**45–47% of failures** in the single-control tau2-bench domains (**3%** in the dual-control one; per
+Table 1 — the paper's own abstract rounds that band to 45–48%), and at **75.8%** among AppWorld
+self-assessing trajectories that carry an **explicit `status` claim**.
 
-> **That paper does not test reasoning effort, thinking budget, latency, or response length.**
-> We grepped the full text: zero hits for any of them. So the phenomenon is *named and measured*,
-> and the axis we keep seeing in our own logs — *how long the model allows itself to think* — is
-> **untested**.
+**But that definition requires a claim.** False success is *"a mismatch between the agent's
+natural-language claim of completion and the programmatic environment state."* Our stall emits no
+text and no tool call — there is no claim to be wrong about. The same paper meets our case head-on
+and **sets it aside**: AppWorld trajectories with `status=None` — **3,120 of 8,190 (38.1%)** — are
+excluded as *"a distinct failure mode (incomplete execution) rather than a false completion claim."*
+
+⇒ So the failure we are describing has been **named, counted once, and never studied**. It is the
+bucket that benchmark paper put aside.
+
+> **What is untested.** That paper does not test reasoning effort, thinking budget, decoding speed,
+> or response length — we grepped the full text. (It does contain one informal reasoning-length
+> figure, 1,274 vs 486 characters, but that compares *across models*, not against outcome.) And in
+> our stack the claim is pushed one layer down: **`turn/end = completed` is a protocol-level
+> assertion**, not a text-level one. Neither benchmark records protocol-level claims, so that layer
+> has no published measurement.
 
 ### One hypothesis we could not confirm, and one we had to drop
 
 **Dropped: “fast models stall more.”** We suspected a link between **generation speed** and
 premature stops — a model tuned to answer quickly being quicker to decide *"this turn is done."*
-A targeted literature pass found **no direct evidence either way**, and two pieces of
-counter-evidence: (a) the early-exit literature treats *stopping sooner* as a **win**
+A targeted literature pass found **no direct evidence either way on the speed axis**, and three
+pieces of counter-evidence: (a) the early-exit literature treats *stopping sooner* as a **win**
 (*Don’t Overthink it*, [arXiv 2505.17813](https://arxiv.org/abs/2505.17813): shorter chains, up
 to **+34.5%** accuracy); (b) every major vendor routes **agentic long-run** work to its
-**slowest, most expensive** setting, not its fastest.
+**slowest, most expensive** setting, not its fastest; (c) on the neighbouring *compute* axis the
+evidence points the other way — giving an agent **more** history **"shifts failures toward
+premature false successes"** ([arXiv 2607.28573](https://arxiv.org/abs/2607.28573): 28.56% accuracy
+at H=4 vs 27.16% at H=8), and raising reasoning effort raises reliability rather than lowering it
+(o1 on SWE-bench Verified: **29.1%** at high effort vs **21.0%** at low, at 3.5× the cost).
 
 **Still open, and testable: “thinking budget → turn-completion behaviour.”** No paper measures
-whether *lowering* a reasoning budget makes an agent **declare a turn complete earlier**. Proxy
-work exists — *Does Your Reasoning Model Implicitly Know When to Stop Thinking?*
-([arXiv 2602.08354](https://arxiv.org/abs/2602.08354)) argues models *do* know when to stop but
-that the ability is **masked by current sampling paradigms**, comparing greedy decoding against
-`temperature = top_p = 1.0`. That is the closest published link between *decoding settings* and
-*when generation ends* — and it is about the reasoning chain, not agent turns.
+whether *lowering* a reasoning budget makes an agent **declare a turn complete earlier**. The proxy
+work we chased is *Does Your Reasoning Model Implicitly Know When to Stop Thinking?*
+([arXiv 2602.08354](https://arxiv.org/abs/2602.08354)) — and it does **not** settle the
+greedy-vs-sampling question. It groups greedy decoding and `temperature = top_p = 1.0` into the
+*same* “non-exploratory” regime; its only length comparison between the two differs by **<2%, with
+the sign flipping between two models** (Table 4, appendix B; n=100, no significance test). So
+neither “greedy stops earlier” nor “sampling stops earlier” has support. What *does* move the stop
+point is exploration width > 0 — 2,972 vs 4,216 tokens (**−29.5%**) at equal-or-better accuracy.
+And its “stop” is the position of `</think>` inside a maths chain: no agent, no tools, no turns.
+So it remains the closest published link between *decoding settings* and *when generation ends* —
+and it is about the reasoning chain, not about agent turns.
 
 > 📣 **If you know of work on this** — a paper, a changelog, an internal ablation, a
 > benchmark that correlates reasoning-budget or decode settings with *turn-completion* rate —
@@ -114,8 +135,14 @@ We read every stall event in ~400 session logs and found three signals that appe
 | middle | **stalls** — a turn whose last step emits reasoning but no action | healthy ≤ 2 per session; sick ones reached **24 / 58 turns** |
 | late | **self-prompt loops** — the same tiny line repeated within one thought | *"do it."* ×**431**; *"ok."* ×202 vs ≤16 in healthy sessions |
 
+> ⚠️ **These are markers, not metrics.** Follow-up measurement (FINDINGS §7) found each one is a
+> weak discriminator on its own: repeat count and stall rate are **uncorrelated (r = −0.0076)**, a
+> third session reached L3 at only **2.1×** self-pressure, and urging words appear on **turn 1–2**
+> in all three deep cases. Read them as *textures of the stage*, never as a score.
+
 And crucially: **it is not monotonic.** Both of our sick sessions *recovered on their own* for 6–10
-turns before relapsing — and **after the second relapse, neither recovered again.**
+turns before relapsing — and after the second relapse the stall *rate* never came back down, though
+one of them still **completed a further turn** afterwards (FINDINGS §7.1).
 That is why we do **not** recommend switching sessions at the first sign, and **do** recommend it
 at the second.
 
@@ -153,7 +180,11 @@ The magic sentence, in our house, is:
   we can only show that self-pressure and the illness rise together, and that reducing pressure
   is free and cannot plausibly hurt.
 - **No one has fixed Factor 1 — not us, and not the vendors.** All four patch the harness side
-  (auto-continue plugins) rather than the cause. This protocol is not a cure. It is triage.
+  (auto-continue plugins) rather than the cause. The closest thing to a vendor acknowledgement is
+  Anthropic's `handling-stop-reasons` page, which documents *"an empty response (exactly 2–3 tokens
+  with no content) with `stop_reason: \"end_turn\"`"* — but its remedy is a **message-structure**
+  change (*do not put text immediately after a `tool_result`*), not a fix to the termination
+  decision itself. This protocol is not a cure. It is triage.
 
 ## If you only remember one thing
 
