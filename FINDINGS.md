@@ -194,7 +194,8 @@ never emitted. This is why we stopped looking for a "cognitive error" explanatio
 - **Anthropic Claude Code** [#56247](https://github.com/anthropics/claude-code/issues/56247) —
   an auto-continue prompt triggers `"No response requested."` then silence; sometimes only killing
   the process recovers it. The reporter asks: *"is the assistant returning an empty completion that
-  the agent loop misinterprets as 'task finished'?"* — exactly our Factor 2.
+  the agent loop misinterprets as 'task finished'?"* — exactly our **Factor 2**
+  (both factors are defined in [README.md](README.md)).
 - **Google Gemini CLI** [#22633](https://github.com/google-gemini/gemini-cli/issues/22633)
 - **arXiv 2608.01995** — Appendix A names the same **symptom class**: *"Premature turn termination. In early Phase 1 the agent would sometimes declare a turn finished after merely submitting a Slurm job, without waiting for or interpreting the result."* ⚠️ **The root differs, and this matters**: theirs had a clear cause and was *"Fixed by an explicit end-your-turn-after-submission instruction"*. Ours has no such fix — which is why we report both: the symptom is shared, the remedy is not.
 - **Xu et al., NeurIPS 2022** — [*Learning to Break the Loop*](https://arxiv.org/abs/2206.02369):
@@ -215,7 +216,8 @@ never emitted. This is why we stopped looking for a "cognitive error" explanatio
 - **The mechanism is an inference.** Logs record outcomes, not sampling. We inferred "emission
   fails at the summary line" from content, recovery behaviour, and termination position — we did
   not observe it directly.
-- **We cannot fix Factor 1**, and no vendor has. Everything practical here is triage:
+- **We cannot fix Factor 1** (the model-side half — see [README.md](README.md) for both factors),
+  and no vendor has. Everything practical here is triage:
   detect early, do not add pressure, hand off cleanly.
 
 ---
@@ -237,7 +239,7 @@ never emitted. This is why we stopped looking for a "cognitive error" explanatio
 
 ### 7.2 Two new findings worth keeping
 
-**1. Repeats are baseline.** 747 sessions, same definition (a ≤6-char line repeating inside one
+**1. Repeats are baseline.** 745 sessions, same definition (a ≤6-char line repeating inside one
 reasoning block, fenced code stripped):
 
 | longest repeat | sessions | share |
@@ -250,6 +252,8 @@ reasoning block, fenced code stripped):
 | >500 | 1 | 0.1% |
 
 ⇒ A clean bimodal split: **98.3% of sessions ≤10×**, and only **3** ever exceed 200×.
+
+*Note on the two denominators you will see in this file:* §3.1’s review block says **747** (that is `two-axes-survey`, which needs a stall rate); this section’s table says **745** (`spell-survey`, which needs only a repeat count). Both are correct — they are different scripts over slightly different session sets, as §7.6 lists. Do not average them or treat the difference as an error.
 
 **2. Repeats and stalls are independent.** Pearson **r = −0.0076** (n=36 sessions with ≥3 turns).
 Counter-examples: **15,901** repeats with **3.8%** stalls; **202** with **2.6%**.
@@ -267,7 +271,7 @@ Stalls come in two shapes, by whether the final reasoning step contains a **conc
 
 ### 7.4 What did NOT survive, listed so nobody repeats it
 
-- **Filler-line ratio** as a severity metric — already falsified in §4.1; we re-falsified it by accident. **Do not use it.**
+- **Filler-line ratio** as a severity metric — already falsified in §4 (item 1); we re-falsified it by accident. **Do not use it.**
 - **Longest reasoning block** as a severity metric — also uncorrelated (one session had a 448,400-char block and a 3.8% stall rate).
 - **"I think I'm tired"** as a predictor of outcome — two sessions said the same sentence; one completed its hand-off, one did not.
 - **"Deliverable exists"** as a predictor — all three case studies produced a handover note.
@@ -282,10 +286,100 @@ Stalls come in two shapes, by whether the final reasoning step contains a **conc
 
 ### 7.6 Reproducing
 
-Three scripts on the review machine (`~/.dsh/tools/`):
+Three scripts, source in the companion `tools/` directory. They read a DSH session store at
+`~/.dsh/sessions` by default (they score our harness’s log format, not a universal one — adapt the
+`root` path if yours differs):
 
 - `spell-survey.cjs` → longest repeat per session (745 logs)
 - `two-axes-survey.cjs` → longest repeat **and** stall rate per session (747 logs)
 - `blocklen-survey.cjs` → longest reasoning block per session (750 logs)
 
 Each takes ~10 s for the whole machine. Full write-up: `agent-fatigue-三例复查-2026-10-18.md`.
+
+---
+
+## 8. Model version attribution — can this be blamed on a model release?
+
+> Written 2026-10-18, after a model release landed mid-experiment. Short answer: **the question cannot be answered from any public source, and one part of it is structurally impossible.**
+> Source grading follows our usual convention: `[fact]` = we read it on an official page or measured it; `[inference]` = our reasoning; `[analogy]` = another vendor.
+
+### 8.1 Why we asked
+
+On **2026/10/17** DeepSeek released `DeepSeek-V4.1-Flash-1017` — the successor to `DeepSeek-V4.1-Flash` (2026/09/10). `[fact]` (official news list at `api-docs.deepseek.com`)
+
+Two of our three worst sessions ran entirely **before** that date; one ran across it; a fourth (this write-up’s own session) also ran across it. So the obvious question: **is the stall behaviour a property of the older model, and did the newer one fix it?**
+
+### 8.2 What the vendor actually says `[fact]`
+
+| Fact | Where |
+|---|---|
+| The API model ID is an **alias**, not a snapshot: *"simply use `deepseek-flash` to access the **latest model**"* | Change Log |
+| The pricing page’s `MODEL VERSION` row now reads `DeepSeek-V4.1-Flash-1017` | pricing page |
+| This has happened before: `deepseek-v4-pro` was **re-routed wholesale at a UTC cutover** | Change Log |
+| **Nothing anywhere** says how an *in-progress* conversation is treated | — (searched: docs, FAQ, Change Log) `[not found]` |
+
+### 8.2b Three separate facts, and only the first one carries the date
+
+It is easy to collapse these into one claim. Keep them apart:
+
+| # | Fact | When | Source |
+|---|---|---|---|
+| **①** | The **server-side** alias `deepseek-flash` began resolving to `DeepSeek-V4.1-Flash-1017` | **2026/10/17** | the **official release note** — `[fact]`, but the date carries **±1 day** uncertainty (see below) |
+| **②** | The **client UI** still showed only `DeepSeek-V41-Flash`, with **no version suffix** | 10-17 → 10-18 | we looked at it — `[fact]` |
+| **③** | After a client update, the UI started showing **`DeepSeek-V4.1-Flash · 1017`** *and* a notification: *"model updated to DeepSeek-V4.1-Flash-1017"* | **10-18** | screenshot — `[fact]` |
+
+**Why the split matters:** the claim "some long sessions straddled a model change" rests on **① only** — the server-side switch — and **not** on ②/③. Those are about *what the UI displayed*, which is a client concern and trails the server by a day.
+
+**The ±1-day caveat.** The official news list and the Change Log **disagree by one day** on at least one earlier release (`V3-0324`: `03/25` vs `03-24`). So `10/17` should be read as "the week of Oct 17", not as a precise instant. ⇒ A session that ended on **10-16** almost certainly never saw 1017; one that ran **10-17 or later** probably did. Anything *on* 10-17 is ambiguous.
+
+**And one correction we owe the reader:** an earlier version of this section implied the UI had always shown the version. It did not — ② was true until 10-18. The *conclusion* is unaffected, but the *evidence chain* had been stated too loosely.
+
+### 8.3 The structural part: there is no server-side conversation `[fact]`
+
+The API is **stateless**. The docs say the server does not record the context; the Responses API marks `previous_response_id`, `conversation` and `store` as **"Not supported (stateless API)"**.
+
+⇒ **There is no "conversation object" to version.** A multi-turn chat is simply N independent calls, each carrying its own history. So "the system pushed a new model into your running conversation" describes something that **cannot happen**.
+
+What *does* happen is ordinary and unintentional: **the same ID resolves to a different model on different days.** A long conversation that spans the cutover will, by construction, have later turns served by the newer version. `[inference]` Mechanism differs from "push"; the user-visible effect is the same.
+
+### 8.4 What we could and could not observe in our own logs
+
+| Session | Span | Model ID in log | Version at start |
+|---|---|---|---|
+| `#afeb9e` (L3) | 10-14 02:39 → 10-16 16:33 | `deepseek-flash` | 09-10 (pre-cutover) |
+| `#235403` (L4) | 10-15 10:01 → 10-16 16:33 | `deepseek-flash` | 09-10 (pre-cutover) |
+| `#fc232e` (L3, completed hand-off) | 10-16 08:26 → 10-18 03:56 | `deepseek-flash` | 09-10 at start, **1017 for later turns** |
+| `#6e4f13` (202 repeats, 2.6% stalls) | 10-13 14:49 → 10-15 03:50 | `deepseek-v4-pro` | different tier entirely |
+
+**⇒ Two of the three worst sessions never touched the new model.** The behaviour therefore **predates** the release.
+
+**⚠️ But we cannot say "it carried over"**, for three reasons:
+
+1. **The logs record only the alias** (`deepseek-flash`), never a version — so for `#fc232e` we cannot tell *which* turns ran on which version.
+2. **"Carried over" presupposes the same mechanism.** We can only observe that two versions *both* show the symptom; we have no evidence they share a cause.
+3. **It may not be a model-layer property at all.** The failure sits at the *emission boundary* (§2.1); that boundary is shared by model, harness, and protocol. A harness-side cause would reproduce across every model version.
+
+### 8.5 The only observable that might help `[inference]`
+
+Responses carry a **`system_fingerprint`** — the industry-standard hook for exactly this question (OpenAI documents it as an indicator of backend configuration).
+
+**⚠️ DeepSeek does not document what theirs means, and has not promised it is stable or version-bound.** We did not capture it during the affected sessions, so it is useless retrospectively. **If you are running this experiment again: log `system_fingerprint` on every response.** That is the single cheapest thing that would make the next round of this question answerable.
+
+### 8.6 How other vendors handle exactly this `[analogy]`
+
+| Vendor | Alias behaviour | Version metadata | Upgrade notice | Opt out |
+|---|---|---|---|---|
+| **Azure OpenAI** | deployment pinned to a version | yes | **two weeks’ notice**, three upgrade policies | **yes** |
+| **Anthropic** | alias points at the **latest dated snapshot** | dated snapshot in the ID | — | — |
+| **Google** | endpoint **auto-routes** to the newer model (same shape as DeepSeek) | release-date column | — | — |
+| **DeepSeek** | **rolling alias** | **none from the server**; the *client* began showing a `· 1017` suffix on **2026-10-18** (§8.2b) | **none from the server**; the *client* now pushes a "model updated" notification (10-18) | **none** |
+
+*(Azure row is from a page we actually fetched; the Anthropic and OpenAI pages were partly blocked, so those cells are from search summaries only — treat as weaker.)*
+
+### 8.7 Conclusion — and why it matters for you and your agents, not for this report
+
+> **Do not wait for a model upgrade to fix this.**
+> Two of our worst cases predate the current release, and the session that completed its hand-off was already spanning the cutover.
+> Whatever this is, **it survives at least one model generation**, and it is not obviously a model-layer defect at all.
+
+What that leaves is what the rest of this repository is about: **detect it early, do not add pressure, hand off cleanly.** Those three do not depend on which version is behind the alias.
