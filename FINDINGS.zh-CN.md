@@ -511,6 +511,13 @@ OpenAI 那一行仍取自 Azure 镜像，因为 OpenAI 的文档在我们试过�
 ⇒ **精确的空白是：** *「跑得更快，会不会让 agent 更容易过早且错误地停下？」* —— **没有人问过。**
 而相邻的那个问题 —— *「给它更多计算，会不会让它过早且错误地停下？」* —— **有人问过，答案是「会」**（`2607.28573`）。
 
+**社区侧 —— 缺口是已知的，但没有被测量。** 在学界之外，这个症状被描述得很直白。
+`deepseek-ai/deepseek-harness` Discussion [#9439](https://github.com/deepseek-ai/deepseek-harness/discussions/9439)（2026-10-11）报告了长会话里**单字符复读铺满思考链**——「正文被挤出视野」。`argszero` 的回复点出了结构性原因：
+
+> **仓库内的两个 guard 都围绕工具调用** —— `repeat-tool-reminder` 看 `tools/post-execute`、`timeout-policy` 看 `tools/execute` —— 而*"a step that emits only reasoning has no tool call, so neither can fire. **Your case is exactly the gap.**"*（只输出 reasoning 的步骤没有工具调用，两个 guard 都不会触发。**你这种情况正是那个缺口。**）
+
+同样的形状也出现在 `NousResearch/hermes-agent` 的 issue #78807。**但没有人测过它**：#9439 自己写*"我们没做对照实验"*，而那些报告是轶事，不是发生率。这是同一个缺口在**社区尺度**上的版本 —— **被知道、被命名、未被测量。**
+
 ⚠️ **术语陷阱，请认真对待：** 在 `2607.28573` 里，*stall* 指的是 **max-step stalls**（步数预算耗尽）——
 **不是**我们的发射失败。它的 `premature false success` 才是与我们对应的词。把两者混用是归因错误。
 
