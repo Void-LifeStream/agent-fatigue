@@ -14,7 +14,7 @@
 ```bash
 node session-signals.cjs                 # compact, exactly 2 lines (for a session-start hook)
 node session-signals.cjs --full          # full table + the reasoning behind every threshold
-node session-signals.cjs --self-test     # 21 assertions on synthetic logs (never touches real data)
+node session-signals.cjs --self-test     # 23 assertions on synthetic logs (never touches real data)
 node session-signals.cjs --verify-cache  # audit the cache: recompute 5 sessions and compare
 node session-signals.cjs --json          # machine-readable
 ```
@@ -30,6 +30,14 @@ Options: `--dir <path>` (session root), `--me <id>` (mark "this session"), `--ti
 | **stalls** | turns whose final step has reasoning but no text/tool call; clustered into episodes (gap ≤ 3 turns, ≥ 2 stalls per cluster) | stage L3 when a 2nd episode appears or an episode has not remitted for 5 turns |
 | **self-prompt loops** | max repeats of the same ≤6-char line inside one reasoning block, after stripping fenced code | ≥ 30 → L3; ≥ 100 → L4 |
 | **context size** | compressed log bytes (tiers) | reported for *visibility only* — **not** a risk score |
+
+> ⚠️ **The `≥ 30 → L3` half of the loop rule is a mistake, kept here for honesty.**
+> A `maxRep` threshold can identify a **block** that is repeating (that is the L4 case: the block
+> repeated *and delivered nothing* — it proves its own failure). It **cannot** advance a **session's**
+> stage: repeat count and stall rate are uncorrelated (r = −0.0076), and a live session with **zero
+> episodes** was once scored L3 purely because one **healthy, fully delivered** 6,178-character block
+> contained 63 repetitions of its own punctuation word. See **`../FINDINGS.md` §12**.
+> ⇒ **Use the episode rule for session staging. Do not copy the `maxRep` line.**
 
 ## Notes from building it
 
@@ -74,7 +82,7 @@ This implementation reads a local roster (DSH keeps one) to learn which sessions
 
 ## Corpus survey scripts (added 2026-10-18)
 
-`session-signals.cjs` scores **one** session. These three scan a **whole session store** and answer
+`session-signals.cjs` scores **one** session. These four scan a **whole session store** and answer
 population questions — what is normal, what is rare, and whether two signals move together.
 
 | script | measures | output |
@@ -82,11 +90,14 @@ population questions — what is normal, what is rare, and whether two signals m
 | `spell-survey.cjs` | longest repeat of a short line (≤6 chars, inside one reasoning block, fenced code stripped) | one row per session |
 | `two-axes-survey.cjs` | the same repeat **plus** the stall rate, per session | one row per session |
 | `blocklen-survey.cjs` | longest single reasoning block, in characters | one row per session |
+| **`block-repeats.cjs`** | the longest repeated short line **per session**, with turn/step, block size, and **whether that block emitted any text or tool call** — the tool behind `../FINDINGS.md` §11 and §13 | a top-N table on stdout (`--min`, `--top`, `--recent`, or one log path) |
 
-Run with `node <script> --out <file.tsv>`; all three default to `~/.dsh/sessions` and finish the
-whole store in about ten seconds. They are what produced the population numbers in
-`../FINDINGS.md` §7 — including the negative results (repeat count and stall rate are
-uncorrelated, r = −0.0076), which is the main reason they are worth keeping.
+Run the three surveys with `node <script> --out <file.tsv>`; all three default to `~/.dsh/sessions`
+and finish the whole store in about ten seconds. `block-repeats.cjs` prints its table directly
+(`--recent` restricts to the last 24h; pass a single `session.v4.jsonl.zstd` to inspect one session).
+Between them they are what produced the population numbers in `../FINDINGS.md` §7 — including the
+negative results (repeat count and stall rate are uncorrelated, r = −0.0076), which is the main
+reason they are worth keeping.
 
 > ⚠️ They assume this harness’s log format (multi-frame zstd, cut on the magic bytes
 > `28 B5 2F FD`), and they hardcode the `~/.dsh/sessions` root. If your store lives elsewhere,
@@ -94,29 +105,18 @@ uncorrelated, r = −0.0076), which is the main reason they are worth keeping.
 
 ---
 
-## Per-session drill-down (added 2026-10-18)
+## Per-session drill-down (the *method* ships; the two helper scripts do not)
 
-The three surveys above answer **population** questions. These two open **one** session and show
-its shape — they are how the case studies in §7 were read, and how the "it knew, it wrote the rule
-down, and it still stopped" observation was found.
+The surveys above answer **population** questions. Reading **one** session's shape is a different
+job — it is how the case studies in §7 were read, and how the "it knew, it wrote the rule down, and
+it still stopped" observation was found.
 
-| script | measures | output |
-|---|---|---|
-| `analyze-stall.cjs` | steps, `turn/end` kinds, largest reasoning block, stall-shaped steps, optional repeat-marker count, per-turn summary | one report for one session |
-| `dump-step.cjs` | one assistant message: block types, token usage, head/tail of the reasoning, claim-word counts, last 12 non-empty lines | one block of text |
-
-```bash
-node analyze-stall.cjs <session.v4.jsonl.zstd> [--count "some string"]
-node dump-step.cjs <session.v4.jsonl.zstd> <turn> <step> [--claims "a,b,c"] [--head N] [--tail N]
-```
-
-Both are read-only and dependency-free. `analyze-stall.cjs` takes `--count` as an **arbitrary**
-repeat marker: the string you pass is counted per reasoning block and totalled, so nothing about a
-particular language or case study is baked in. `dump-step.cjs` requires `<turn> <step>` explicitly
-(no default case), and its claim-word list is a plain `--claims` CSV with an English default.
-
-> ⚠️ **`dump-step.cjs` prints raw reasoning text.** It is meant for reading your own logs; redact
-> before pasting its output anywhere public.
+> ⚠️ **`analyze-stall.cjs` and `dump-step.cjs` appeared in earlier revisions of this file but are
+> NOT included in this repository** — they lived on one machine and were never kept. If you came
+> here looking for them: they are not missing, they are absent by accident, and the method is small
+> enough to re-derive in a few lines: open one `session.v4.jsonl.zstd`, group events by `turn`,
+> and print the block types (`reasoning` / `text` / `tool-call`) of a single `assistant/message`.
+> ⚠️ Whatever you print this way is **raw reasoning text** — redact before pasting it anywhere public.
 
 **Why drill-down rather than more surveys.** A population statistic tells you a signal is
 uninformative (e.g. repeat count vs stall rate, r = −0.0076). It cannot tell you *what the step
