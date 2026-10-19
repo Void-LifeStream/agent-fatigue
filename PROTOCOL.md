@@ -100,10 +100,16 @@ Definitions (harness-agnostic):
 > Repeated *closing* words (*"ok.", "good."*) are a stylistic tic seen in **98.3% of healthy sessions**
 > (≤10× per block), so they should be excluded from the L4 count entirely.
 >
-> **But do not over-read the urging ones either.** One session repeated an *urging* word
-> (中文「发」, ≈"send.") **15,901** times and still had a **3.8%** stall rate; another repeated
-> a *closing* word **202** times with **2.6%**. Repeat count alone separates nothing — see the
-> correlation figure in FINDINGS §7.2.
+> **But do not over-read the urging ones either — that caution is about the *session* level.**
+> Another session repeated a *closing* word **202** times with **2.6%** stall rate, and the
+> correlation in FINDINGS §7.2 is near zero.
+>
+> ⚠️ **2026-10-19 correction: a 15,901-repeat case we used to cite here was the wrong example.** It was once
+> used here to argue that urging counts mean little. A block-level rescan says the opposite — those
+> 15,901 repeats of 「发」 (≈"send.") sit **inside a single 448,400-character block that delivered
+> zero output** (0 text, 0 tool calls). It is a **textbook L4 event**, not a counter-example. The
+> conclusion stands (repeat count does not predict the *session's* stall rate), but **the example
+> must go** — argue "don't over-read" with a closing-word case, not this one.
 
 ---
 
