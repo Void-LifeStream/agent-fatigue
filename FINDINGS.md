@@ -513,6 +513,20 @@ across four axes:
 **not asked**. The neighbouring question — *"does giving it more compute make it stop early and
 wrongly?"* — **has been asked, and the answer is yes** (`2607.28573`).
 
+**Community side — the gap is known, but it is not measured.** Outside academia the symptom is
+described plainly. `deepseek-ai/deepseek-harness` Discussion
+[#9439](https://github.com/deepseek-ai/deepseek-harness/discussions/9439) (2026-10-11) reports
+single-character repetition filling the reasoning stream in long sessions — *"正文被挤出视野"* (the
+answer text gets pushed out of view). The reply from `argszero` names the structural reason:
+
+> **Both in-tree guards are tool-call-centric** — `repeat-tool-reminder` watches `tools/post-execute`,
+> `timeout-policy` watches `tools/execute` — and *"a step that emits only reasoning has no tool call,
+> so neither can fire. **Your case is exactly the gap.**"*
+
+The same shape appears in `NousResearch/hermes-agent` issue #78807. **But nobody has measured it**:
+#9439 itself says *"we did not run a controlled experiment"*, and the reports are anecdotes, not
+rates. This is the community-scale version of the same gap — **known, named, unmeasured.**
+
 ⚠️ **Terminology trap, take this seriously:** in `2607.28573` a *stall* means **max-step stalls** (the
 step budget ran out) — **not** our emission failure. Its `premature false success` is the term that
 matches us. Mixing the two is an attribution error.
