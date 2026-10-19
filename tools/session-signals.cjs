@@ -482,8 +482,8 @@ function run() {
 // ② **后备源：台账状态列 `archived` 的行**（旧行为，保留） —— 覆盖"台账标了但没点按钮"的情况。
 // ⇒ 两个源都读不到就退回旧行为（只会多报，不会漏报）；并集只会**多排除已确认归档的**，不会误放。
 // 用户 2026-10-16 授权：让已休息的不再被报。
-function restedShorts() {
-  const set = new Set();
+function ledgerShorts() {
+  const archived = new Set(), ready = new Set();
   // ① DSH 权威归档列表
   try {
     const ws = JSON.parse(fs.readFileSync(
@@ -491,10 +491,15 @@ function restedShorts() {
     const ids = (ws.global && ws.global.archivedSessionIds) || [];
     for (const id of ids) {
       const s = String(id).replace(/^session-/, '');
-      if (s.length >= 6) set.add(s.slice(-6));
+      if (s.length >= 6) archived.add(s.slice(-6));
     }
   } catch (e) { /* 读不到就靠台账，见下 */ }
-  // ② 台账状态列
+  // ② 台账状态列（archived / ready **分开收**）
+  // ⚠️ 2026-10-20：`ready` **不等于** archived —— 它表示"逻辑归档、信道还开着，在等可能的回复"。
+  //    ⇒ ready 的会话**仍然报警**（因为她还可能在跑），只在行尾加一个 `·ready`，
+  //      让接班者知道「她在等回复，不是活着还在恶化」。
+  //    这条补丁是主人那句承诺（"说了逻辑归档就绝不点归档按钮"）的配套：
+  //    没有它，一只 ready 且 L3+ 的会话会**永远挂在报警行里、且看不出原因**。
   try {
     const wb = path.join(os.homedir(), '.dsh', 'inflight', 'workboard.md');
     const txt = fs.readFileSync(wb, 'utf8');
@@ -503,11 +508,14 @@ function restedShorts() {
       const cells = line.split('|');
       if (cells.length < 5) continue;
       const status = (cells[4] || '').replace(/\*/g, '').trim().toLowerCase();
-      if (!status.includes('archived')) continue;
-      for (const m of line.matchAll(/#([0-9a-f]{6})\b/g)) set.add(m[1]);
+      let bucket = null;
+      if (status.includes('archived')) bucket = archived;
+      else if (status.includes('ready')) bucket = ready;
+      if (!bucket) continue;
+      for (const m of line.matchAll(/#([0-9a-f]{6})\b/g)) bucket.add(m[1]);
     }
   } catch (e) { /* 读不到就当作"谁都没休息"，宁可多报 */ }
-  return set;
+  return { archived, ready };
 }
 const abnormal = rows.filter(isAbn)
     .sort((a, b) => b.stage - a.stage || b.maxRep - a.maxRep || b.stallTurns - a.stallTurns);
@@ -518,7 +526,7 @@ const abnormal = rows.filter(isAbn)
   //    却因 T40/S1 那个 6,178 字符的正常块里 63 次「做。」被判 L3。
   //    ⇒ 「发作 0 次」是唯一能当场识破这类假警报的字段。旧版把它藏起来
   //      （`episodes ? … : ''`），等于在"最安全的情况"下不出示安全证据。
-  const fmtAbn = r => `#${r.short} ${r.stageName}(催促${r.urgentTrend.toFixed(1)}×·空转${r.stallTurns}轮·咒语${r.maxRep}·发作${r.episodes}次)`;
+  const fmtAbn = r => `#${r.short} ${r.stageName}(催促${r.urgentTrend.toFixed(1)}×·空转${r.stallTurns}轮·咒语${r.maxRep}·发作${r.episodes}次${r.ready ? '·ready' : ''})`;
 
   // 缓存可信度审计：抽 5 个"命中缓存"的会话全量重算，逐字段比对
   if (OPTS.verifyCache) {
@@ -569,8 +577,18 @@ const abnormal = rows.filter(isAbn)
   // ---- 紧凑 2 行（inflight.ps1 用；验收要求"输出增量 < 3 行"）----
   // ⚠️ 这个标记必须算在**两个分支之外**：紧凑输出（每次开工）与 --full（人看全貌）都要用到它。
   //    2026-10-17 修 —— 原先放在紧凑分支里，导致 --full 的表格列不出"已休息"，两份输出的判据不一致。
-  const rested = restedShorts();
-  abnormal.forEach(r => { r.rested = rested.has(r.short); });   // 标记但不删：原始数据保真，展示层才过滤
+  const ledger = ledgerShorts();
+  abnormal.forEach(r => {
+    r.rested = ledger.archived.has(r.short);                    // 🔚 已归档 ⇒ 不再报警
+    r.ready  = !r.rested && ledger.ready.has(r.short);          // ⏳ 逻辑归档、信道开着 ⇒ 仍报警，但要标出来
+  });
+  // ⚠️ 2026-10-20 自测踩到：`mine` 可能**不在 `abnormal` 里**（L0–L2 的会话），
+  //    但紧凑行第一段照样显示它的信息 ⇒ 必须**单独标记**，
+  //    否则 `--me <一只 ready 的 L0 会话>` 会看不到 `· ready`（第一次自测就是 `#6a1e63` 暴露的）。
+  if (mine) {
+    mine.rested = ledger.archived.has(mine.short);
+    mine.ready  = !mine.rested && ledger.ready.has(mine.short);
+  }
   if (!OPTS.full) {
     const topTxt = top.map(r => {
       const t = readTitle(r.dirName);
@@ -588,7 +606,7 @@ const abnormal = rows.filter(isAbn)
     console.log(`[0] 📏 会话规模  合计 ${fmtMB(totalBytes)} / ${rows.length} 个日志（${scopeTxt}） · 最大 ${topTxt} · ${tierTxt}`);
 
     const mineTxt = mine
-      ? `本会话 #${mine.short} ${mine.stageName || 'L0'}（催促 ${mine.urgentTrend.toFixed(1)}× · 空转 ${mine.stallTurns}/${mine.turns} 轮 · 咒语 ${mine.maxRep} · 发作 ${mine.episodes} 次${mine.episodes ? (mine.inEpisode ? '(未缓解)' : '(已缓解)') : ''}）`
+      ? `本会话 #${mine.short} ${mine.stageName || 'L0'}（催促 ${mine.urgentTrend.toFixed(1)}× · 空转 ${mine.stallTurns}/${mine.turns} 轮 · 咒语 ${mine.maxRep} · 发作 ${mine.episodes} 次${mine.episodes ? (mine.inEpisode ? '(未缓解)' : '(已缓解)') : ''}${mine.ready ? ' · ready' : ''}）`
       : '本会话(未识别到日志)';
   const others = abnormal.filter(r => !mine || r.short !== mine.short).filter(r => !r.rested);
     const abnTxt = others.length
@@ -622,7 +640,7 @@ const abnormal = rows.filter(isAbn)
   if (abnormal.length === 0) console.log('  （没有）');
   for (const r of abnormal) {
     const mark = (mine && r.short === mine.short) ? '  ← 本会话' : '';
-    console.log(`  #${r.short} ${r.stageName}  发作 ${r.episodes} 次${r.inEpisode ? '（**最后一次还没缓解**）' : '（已缓解）'} · 催促 ${r.urgentTrend.toFixed(1)}×（${r.urgentEarly.toFixed(2)}→${r.urgentLate.toFixed(2)}/千字）· 空转收尾 ${r.stallTurns}/${r.turns} 轮 · 「继续」${r.continues} 次 · 咒语 ${r.maxRep}${r.maxRepUnit ? '「' + r.maxRepUnit + '」' + (r.spellUrgent ? '⇐催促词(病征)' : '⇐收束词(多为风格)') : ''}${mark}${r.rested ? '  🔚 已休息（不再报警）' : ''}`);
+    console.log(`  #${r.short} ${r.stageName}  发作 ${r.episodes} 次${r.inEpisode ? '（**最后一次还没缓解**）' : '（已缓解）'} · 催促 ${r.urgentTrend.toFixed(1)}×（${r.urgentEarly.toFixed(2)}→${r.urgentLate.toFixed(2)}/千字）· 空转收尾 ${r.stallTurns}/${r.turns} 轮 · 「继续」${r.continues} 次 · 咒语 ${r.maxRep}${r.maxRepUnit ? '「' + r.maxRepUnit + '」' + (r.spellUrgent ? '⇐催促词(病征)' : '⇐收束词(多为风格)') : ''}${mark}${r.rested ? '  🔚 已休息（不再报警）' : (r.ready ? '  ⏳ ready（逻辑归档·信道还开着，仍报警）' : '')}`);
   }
   console.log('');
   console.log('-- 全部被「继续」推过的会话（含未越线的）--');
