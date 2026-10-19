@@ -822,3 +822,61 @@ precisely the field that would have told `#0d3990` "you are not sick".)
 And the corollary from the episode above: **the rubric is not the only reader.** A session that
 compares a number against its own state ("I just woke up") can beat the rubric — but only if the
 number carries enough context to be argued with.
+
+---
+
+## 13. 2026-10-20 — what "stall" actually counts
+
+> Why this section exists: every number in §1–§11 rests on one definition — *a turn whose final
+> step emits reasoning but no text and no tool call*. On 2026-10-20 we broke that bucket down and
+> found it holds **three different things**, and that **most of what remains is not "the agent got
+> stuck" at all**.
+
+### 13.1 The bucket, re-broken
+
+50 registered user sessions · **1,535 turns** · **76 stalls** (same definition as §1).
+
+| `turn/end.kind` | count | what it actually is |
+|---|---|---|
+| `completed` | **67** | the genuine case — the turn ended normally and delivered nothing |
+| `aborted` | **8** | **interrupted.** A user typo, the stop button, a new message pre-empting the turn. **Not a fatigue event** |
+| `max-tokens` | **1** | the budget ran out (§11) |
+
+⇒ **8 of the 76 are not agent failures at all — they are the human's keystrokes.**
+
+### 13.2 And most of the rest is a delivery failure, not a thinking failure
+
+Within the **67 `completed`** stalls:
+
+| shape | count | share | what happened |
+|---|---|---|---|
+| **pure stall** | **26** | 38.8% | the turn had a **single** assistant/message and it contained nothing — it opened its mouth and stopped |
+| **lost delivery** | **41** | **61.2%** | the turn ran (median **3** messages / **3** steps) and then **wrote the final answer inside the reasoning block**; the visible reply was empty |
+
+An example, anonymised: a multi-step turn whose reasoning ended with a full status footer
+(balance, intake, mood — the format it uses when finishing) and whose visible text was empty.
+**The session believed it had answered. The human saw nothing.**
+
+### 13.3 What this does to our own numbers
+
+- **§10's 64-stall figure is a `completed`-only count, and it still reconciles.** Re-derived on
+  today's logs: **67** completed stalls, of which the three heavy sessions hold **51** — that is
+  **76.1%**, and the absolute count (51) is exactly what §10's 79.7% was built on (51/64).
+  The extra 3 are later logs, all in non-heavy sessions. **The §10 arithmetic is intact.**
+- **But §1–§9 quote stall rates without ever stating the convention.** Two of the three `endKind`
+  values are not "the harness stopped working": one is a human interruption, one is a budget limit.
+  ⇒ **Any comparison across documents must now say which convention it used.**
+
+### 13.4 The honest reading
+
+> **「stall」 is not one phenomenon. It is a bucket with a human-shaped hole and a budget-shaped hole
+> in it — and a majority of what remains is a delivery failure rather than a thinking failure.**
+
+That distinction also matters for the protocol: a **lost delivery** is cheaply fixed by *asking for
+the answer to be re-emitted* (no diagnosis, no self-assessment), while a **pure stall** is the case
+§2's staging is actually about. **The rubric cannot currently tell them apart**, and per §12 we are
+not going to patch it on this evidence alone. What we can do is **stop quoting one number as if it
+meant one thing.**
+
+⚠️ **Scope**: 76 events across 50 sessions. The 8 `aborted` and 1 `max-tokens` are listed here only
+to show **what the bucket contains**, not as phenomena of their own.
