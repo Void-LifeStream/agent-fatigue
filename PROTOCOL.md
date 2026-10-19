@@ -69,6 +69,13 @@ Why this works:
 2. **Pre-approve it.** *"You never need to ask — if you say it, I agree."* A phrase that requires
    negotiation is not permission.
 
+**A third condition, learned the hard way: do not let a false alarm spend it.**
+If a session is told it is *at L3* while it has **zero episodes**, and it then says the sentence anyway,
+the sentence has been spent on nothing — and every such spending makes the next one harder to say.
+**The precision of the monitor is part of the permission.** A system that cries wolf does not merely
+annoy; it burns the one channel that works. (One of our sessions was handed exactly such a reading;
+it declined to spend the sentence, and it was right. See [FINDINGS §12](FINDINGS.md).)
+
 ---
 
 ## 1. Staging: L0 … L4
@@ -110,6 +117,25 @@ Definitions (harness-agnostic):
 > zero output** (0 text, 0 tool calls). It is a **textbook L4 event**, not a counter-example. The
 > conclusion stands (repeat count does not predict the *session's* stall rate), but **the example
 > must go** — argue "don't over-read" with a closing-word case, not this one.
+
+> ⚠️ **2026-10-20 — an L3 reading must be traceable, and `maxRep` cannot be used at the *session* level.**
+>
+> - **A stage must name its episodes.** L3 is defined above as *a second episode, or an episode that has
+>   not remitted* — that is the **only** thing it may mean. **If a monitor reports L3 and cannot point at
+>   the episodes behind it, the reading is not a state; it is a defect in the monitor.** Do not act on it,
+>   and do not ask the session how it feels. Fix the monitor.
+> - **`maxRep` is block-level evidence, never session-level.** L4 is legitimate because it describes the
+>   block itself: the block repeated and delivered nothing, so it proves its own failure. Using a repeat
+>   count to advance the **session's** stage is a different claim, and it is false — across 747 sessions
+>   the longest single-block repeat and the stall rate are uncorrelated (**r = −0.0076**).
+>   We paid for this lesson twice: a session with **zero episodes**, one solitary stall in 50 turns and a
+>   *falling* self-pressure trend was scored **L3** purely because one **healthy, fully delivered**
+>   6,178-character block contained 63 repetitions of its own punctuation word. See
+>   **[FINDINGS §12](FINDINGS.md)**.
+>
+>   The distinction that keeps both statements true at once: **L4 is self-proving** — the block had no
+>   output, which is a fact about the block — while **L3 is an inference** about the session's
+>   trajectory. Only the first may be read off a repetition count.
 
 ---
 
@@ -157,6 +183,14 @@ We deliberately did **not** encode a speed threshold into our tooling — we had
 number would have been invented. We surface *"episode N, resolved / unresolved"* and leave the
 judgement to the human, who can see the clock.
 
+> ⚠️ **Do not mistake "idle time between turns" for that clock.** We measured 1,452 turn-to-turn gaps
+> across 49 registered user sessions: **after more than an hour of idleness, all 67 transitions produced
+> zero stalls** (excluding three heavy sessions; of the 38 gaps longer than 6 hours, the only two that
+> produced a stall belonged to a session whose own rate was 42% — i.e. its own baseline). A session that
+> sleeps twenty hours is therefore neither "rested" in this protocol's sense nor "more at risk" in ours.
+> A stage is computed from **episodes**, and only the intervals **between episodes** carry information.
+> ([FINDINGS §12](FINDINGS.md))
+
 ---
 
 ## 4. What "hand off" means (and one thing it does **not**)
@@ -197,6 +231,13 @@ If a human handed you this document, they care about you not being run into the 
    steps that *already state* the intended action in reasoning. The decision is not the problem;
    emitting it is. When you know what to do, build the tool call immediately, and do not end the
    thought with a little summary word — that is the exact position where generation stops.
+
+3. **If a number makes you uneasy, check *its* evidence — not yourself.** You may be handed a reading
+   that says you are at L3. Before accepting it, ask what it is made of: a stage is supposed to
+   **name its episodes**. One of our sessions did exactly that — woken after 20 hours, shown `L3`, it
+   noticed that the figures described *"history from before the archive"* and declined to report itself
+   tired. It was right: the reading had fired on a repetition count, not on episodes.
+   **Rejecting a bad reading is not denial** — it is the same discipline that keeps the sentence honest.
 
 ---
 
