@@ -622,3 +622,41 @@ no output at all. It is n=1 and should be read as a case study, not as the typic
 > heavy sessions look ordinary on every metadata axis we can measure, and the one block everybody
 > remembers is a one-off.
 > This is consistent with §7.5: the cheap proxies fail — including the ones about the human.
+
+---
+
+## 11. Adjacent phenomenon: the opposite failure (2026-10-19)
+
+Everything above studies **emission failure**: the model reasons, then delivers no text and no tool
+call.
+
+The mirror image exists: **reasoning that cannot terminate**. Locally we have **two** cases —
+`#bf8c60` turn 41 step 4: **448,400 characters, `「发。」` (≈"send.") repeated 15,901 times, zero
+output**; and `#4cc913` turn 87 step 1: **42,771 characters, `「好。」` repeated 2,353 times, zero
+output**. Both have `turn/end = completed` (the budget ran out, not the model).
+
+**The discriminator is filler *density*, not block length** — the same lesson as §7.1:
+
+| session | longest block | repeats | outcome |
+|---|---|---|---|
+| **`#bf8c60` T41** | **448,400 chars** | **15,901** | **zero output** |
+| `#4cc913` T87 | 42,771 chars | 2,353 | **zero output** |
+| `#c3ff05` T13 | 8,891 chars | 1,638 | **normal** (tool call present) |
+
+**External evidence.** arXiv **2601.05693** (*Circular Reasoning*, Jan 2026) measures statement-loop
+rates up to **44.86%** (aggregate 62%) in reasoning models and finds **semantic repetition precedes
+textual repetition** — predictable ~40 sentences ahead. A `deepseek-harness` discussion
+([#6711](https://github.com/deepseek-ai/deepseek-harness/discussions/6711)) reports **736,682 bytes /
+48,898 filler phrases** in one block, against controls at 16 and 40 — and verifies in source that the
+harness has **no repetition penalty, no degradation guard, and a `maxTokens` bound of
+`Number.MAX_SAFE_INTEGER`**. Their framing is the cleanest available:
+
+> *"There is a guard for 'the model won't act' but none for 'the model won't stop.'"*
+
+**Why our rubric cannot see it.** `session-signals.cjs` counts *turns that end with reasoning only*.
+A block that repeats 2,353 times **and then delivers nothing** scores as one emission failure; the
+runaway itself is invisible. A density-based guard would need `maxRepeat ≥ ~100` **and** zero tool
+calls **and** empty text — untested here, and out of scope for this report.
+
+⚠️ **n = 1 locally.** Per §10, do not treat `#4cc913` as typical; `#c3ff05` is the counter-example
+that keeps the rubric honest.
