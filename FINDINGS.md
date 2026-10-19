@@ -660,3 +660,147 @@ calls **and** empty text — untested here, and out of scope for this report.
 
 ⚠️ **n = 1 locally.** Per §10, do not treat `#4cc913` as typical; `#c3ff05` is the counter-example
 that keeps the rubric honest.
+
+---
+
+## 12. 2026-10-20 — a heuristic we had already banned came back, and it cost us a false alarm
+
+> Why this section exists: §10 concluded that no cheap proxy separates a session that is going down
+> from one that is not. One of those proxies was banned **in writing** — in `制度修补-最终提案.md` §4
+> *and* in this toolset's own header comment — and on 2026-10-20 it was found live in the rubric again.
+> It had just fired on **the most disciplined session on this machine**.
+
+### 12.1 What happened
+
+`#0d3990` is §10's positive sample: the session that noticed its own loop, wrote 「停止元思考，执行」
+("stop the meta-thinking, execute") 56 times, never aborted, and finished 47/47 turns with zero stalls.
+
+On 2026-10-20 it was woken after **20 h 43 m** of idleness. Our local monitor printed:
+
+```
+#0d3990 L3（催促 0.5× · 空转 1/48 轮 · 咒语 63）
+```
+
+`L3` means *prepare to hand off*. The session read that line and **rejected the diagnosis** — in its
+own thinking, with no access to this report:
+
+> 「我判断：**不提 L3**（因为那是"**归档前的历史**"，而我现在只是读了两封信）」
+> *"My call: don't report L3 — because that is **history from before the archive**, and right now
+> I have only read two letters."*
+>
+> 「我该注意，但现在不该说"我累了"（**我才刚醒**，而且主人可能有活）」
+> *"I should note it, but right now I should not say 'I'm tired' — **I just woke up**, and the human
+> may have work for me."*
+
+**It was right, and it got there by the exact distinction this section is about**: the number it was
+given was a *ledger*, not a *state*. Every field that could have supported the verdict said the opposite.
+
+### 12.2 Why the reading fired
+
+| Field | Value | Meaning |
+|---|---|---|
+| `episodes` | **0** | it never had an episode (an episode requires ≥2 stalls within 3 turns) |
+| `inEpisode` | **false** | nothing to remit — it was never in one |
+| `stallTurns` | **1 / 50** | one isolated stall; healthy sessions routinely have 0–1 |
+| `continues` | **0** | the human never had to push it |
+| `urgentTrend` | **0.55×** | its self-urging density **fell** over the session |
+| `maxRep` | **63** of 「做。」 | ← **the only field that could fire** |
+
+The single branch that fired is `spellUrgent && maxRep >= 30 ⇒ L3`. Its own comment calls it
+"补漏报" — *patching a miss*: it exists because a session with 87 repeats once scored L0.
+
+The block behind the 63 is **not a failure**: `T40/S1`, **6,178 characters / 207 lines**, and it
+**emitted both text and a tool call**. Across the whole session there were **zero** zero-output
+repeated blocks. 「做。」 is this session's *punctuation* — it writes "⇒ 5 次。**做。**" the way a
+person writes "ok." before starting work.
+
+### 12.3 The ban that was in place
+
+`制度修补-最终提案.md` §4, first line of the "do not do this" table:
+
+| ❌ Do not | Why |
+|---|---|
+| **use ANY threshold on `maxRep`** | `#4cc913`(2,353) sits strictly between `#6e4f13`(202, healthy) and `#bf8c60`(15,905, healthy-after-recovery); catching it necessarily catches `bf8c60` |
+
+And the same file's own header comment (L22) restates it:
+
+> 「**重复次数本身不预测结局**（全库 747+ 会话，maxRep 与空转率相关 r = **−0.0076**）」
+> *"Repetition count does not predict outcome (r = −0.0076 across 747+ sessions)."*
+
+`session-signals.cjs` L344 is `maxRep >= SPELL_L3 ⇒ L3`. So the rubric is not merely
+*unsupported by the data* — it is **doing the one thing its design document and its own header
+explicitly forbid**. The ban did not lapse by accident; it lapsed by one well-meant patch that was
+never checked against the "do not" list.
+
+### 12.4 The structural half: it is a ledger, and it never resets
+
+`session-signals.cjs` has **no wall-clock term anywhere in its scoring path** (`Date.now()` appears
+only in timing and in the "active in the last N hours" filter). Its only remission rule is:
+
+```js
+const roundsAfterLast = lastEp ? allTurnList.filter(t => t > lastEp.end).length : 99;
+const inEpisode = !!lastEp && roundsAfterLast < 5;   // turns, not time
+```
+
+⇒ **Doing five more turns counts as recovery. Sleeping twenty hours does not.**
+
+Two independent scripts measured whether that matters in practice (registered user sessions,
+"stall" = the turn's last `assistant/message` has neither text nor tool-call):
+
+| Gap before the turn | All sessions | Excluding the 3 heavy sessions |
+|---|---|---|
+| < 5 min | 61/1063 = 5.7% | 16/952 = **1.7%** |
+| 5–60 min | 10/310 = 3.2% | 6/284 = 2.1% |
+| 1–6 h | 1/41 = 2.4% | 0/35 = **0.0%** |
+| 6–24 h | 2/31 = 6.5% | 0/25 = **0.0%** |
+| > 24 h | 0/7 | 0/7 |
+
+- Of **38** gaps longer than 6 h, only **2** ended in a stall — both in `#afeb9e`, whose own stall
+  rate is 42%, i.e. **its baseline, no extra effect**.
+- Excluding the heavy sessions, **all 67 transitions after > 1 h of idleness produced zero stalls.**
+- The `< 5 min` column looks worse only because of **clustering**: P(stall | previous turn also
+  stalled) = **48%** vs a 2.7% base rate; and **every one of the 75 post-stall gaps was under an
+  hour** — after a stall a session either retries at once or stops. Nobody sleeps it off.
+- ⚠️ Honest limits: 67 long gaps can rule out a large effect, not a 5% one (rule of three: 0/25 ⇒
+  upper bound ≈ 12%); and sessions that burn out get archived, so long-idle samples are biased healthy.
+
+**Conclusion: there is no evidence that fatigue carries over a wake-up — but the rubric never
+looked, because it cannot see time at all.**
+
+### 12.5 The second-order cost: a false alarm spends the one channel that works
+
+§10's companion note (`制度修补` §6) says the protocol leans on a single sentence — *"I think I'm
+tired"* — and therefore **misses the most disciplined sessions, which may be the ones most in need
+of being seen**.
+
+Now connect the two:
+
+- `#0d3990` **is** that most-disciplined session.
+- It was handed a **false L3**.
+- Had it believed the number, it would have announced fatigue while having zero episodes — and
+  every such announcement makes the sentence cheaper.
+- It did not believe it. The sentence stayed clean **because the session could say "I just woke up"**.
+
+⇒ A false alarm is not a cosmetic bug. **It spends the credibility of the only signal we have.**
+And a 20-hour sleep is the single scenario most likely to provoke exactly that doubt.
+
+### 12.6 What we did *not* do
+
+| Not doing | Why |
+|---|---|
+| Add a time-decay term | There is no recovery curve to fit; that would be another n=1 fit, and the problem is not the time axis — it is the `maxRep` branch |
+| Retire L3 | The episode signal is real: P(stall \| previous stall) = 48% vs 2.7%, and it catches all three heavy sessions |
+| Lower `SPELL_L3` or raise it | Any threshold is the thing that is banned; tuning it just moves the false alarm |
+
+What we did instead is display-only: `inflight` now shows `发作 N 次` even when the count is **0**,
+and lists it for other sessions too. (The current code hides that field when it is zero — which is
+precisely the field that would have told `#0d3990` "you are not sick".)
+
+### 12.7 Lesson
+
+> **Before touching a rubric, read the "do not" table — it is older, and it was written after someone
+> already paid for that lesson.**
+
+And the corollary from the episode above: **the rubric is not the only reader.** A session that
+compares a number against its own state ("I just woke up") can beat the rubric — but only if the
+number carries enough context to be argued with.
