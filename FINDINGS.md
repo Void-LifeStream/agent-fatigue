@@ -732,6 +732,24 @@ And the same file's own header comment (L22) restates it:
 explicitly forbid**. The ban did not lapse by accident; it lapsed by one well-meant patch that was
 never checked against the "do not" list.
 
+**Two details make this worse than it first looks** (checked 2026-10-20):
+
+- **The ban came *after* the code, and nobody went back.** The tool's own history shows
+  `SPELL_L3 = 30` present at least as early as **2026-10-17 01:00**; the "do not" table is dated
+  **2026-10-18 14:58** — thirty hours later. The rule was written, and the branch violating it stayed
+  in place for another day and a half, because nobody re-read the code against the new rule.
+- **The example that justified the branch cannot be found.** The comment says the branch exists
+  because a session with **87** repeats of 「做。」 would otherwise score L0. A full scan of
+  **1,100+ local sessions** finds only two whose longest repeated unit is 「做。」: one at **63**
+  (the session in §12.1) and one at **431** (the terminal case). **There is no 87.** The nearest
+  candidate — a session with **90** repetitions — repeats 「**好。**」, a *closing* word, which
+  `SPELL_URGENT_RE` correctly excludes; it could never have been the missed case. The justification
+  may be a misremembered number, a session that no longer exists, or a conflation of the two. It
+  cannot be verified either way.
+- ⇒ **As far as this machine can tell, the branch has produced one false alarm and prevented
+  nothing.** We are not deleting it yet — the honest state of the evidence is *"the reason is
+  unverifiable"*, not *"the reason is false"* — but it no longer gets the benefit of the doubt.
+
 ### 12.4 The structural half: it is a ledger, and it never resets
 
 `session-signals.cjs` has **no wall-clock term anywhere in its scoring path** (`Date.now()` appears
