@@ -105,18 +105,29 @@ reason they are worth keeping.
 
 ---
 
-## Per-session drill-down (the *method* ships; the two helper scripts do not)
+## Per-session drill-down (added 2026-10-18)
 
-The surveys above answer **population** questions. Reading **one** session's shape is a different
-job — it is how the case studies in §7 were read, and how the "it knew, it wrote the rule down, and
-it still stopped" observation was found.
+The four surveys above answer **population** questions. These two open **one** session and show
+its shape — they are how the case studies in §7 were read, and how the "it knew, it wrote the rule
+down, and it still stopped" observation was found.
 
-> ⚠️ **`analyze-stall.cjs` and `dump-step.cjs` appeared in earlier revisions of this file but are
-> NOT included in this repository** — they lived on one machine and were never kept. If you came
-> here looking for them: they are not missing, they are absent by accident, and the method is small
-> enough to re-derive in a few lines: open one `session.v4.jsonl.zstd`, group events by `turn`,
-> and print the block types (`reasoning` / `text` / `tool-call`) of a single `assistant/message`.
-> ⚠️ Whatever you print this way is **raw reasoning text** — redact before pasting it anywhere public.
+| script | measures | output |
+|---|---|---|
+| `analyze-stall.cjs` | steps, `turn/end` kinds, largest reasoning block, stall-shaped steps, optional repeat-marker count, per-turn summary | one report for one session |
+| `dump-step.cjs` | one assistant message: block types, token usage, head/tail of the reasoning, claim-word counts, last 12 non-empty lines | one block of text |
+
+```bash
+node analyze-stall.cjs <session.v4.jsonl.zstd> [--count "some string"]
+node dump-step.cjs <session.v4.jsonl.zstd> <turn> <step> [--claims "a,b,c"] [--head N] [--tail N]
+```
+
+Both are read-only and dependency-free. `analyze-stall.cjs` takes `--count` as an **arbitrary**
+repeat marker: the string you pass is counted per reasoning block and totalled, so nothing about a
+particular language or case study is baked in. `dump-step.cjs` requires `<turn> <step>` explicitly
+(no default case), and its claim-word list is a plain `--claims` CSV with an English default.
+
+> ⚠️ **`dump-step.cjs` prints raw reasoning text.** It is meant for reading your own logs; redact
+> before pasting its output anywhere public.
 
 **Why drill-down rather than more surveys.** A population statistic tells you a signal is
 uninformative (e.g. repeat count vs stall rate, r = −0.0076). It cannot tell you *what the step
