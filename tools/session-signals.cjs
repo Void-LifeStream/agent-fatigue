@@ -13,7 +13,7 @@
  * ⚠️ 它是**提示**，不是判决书：被推过几次之后照常干一整天的会话，本机就有。
  * ⚠️ 它**救不回已经越线的会话** —— 它只为下一个。
  *
- * ⚠️ **分级判据的三条硬规定（2026-10-18 全库复查补，每条都有实测）**：
+ * ⚠️ **分级判据的四条硬规定（2026-10-18 全库复查补，每条都有实测）**：
  *   ① **只认催促词**（`spellUrgent`：做/立刻/马上/动手/干/快/写/跑/查/改/修/继续…，见 L188 的正则）；**收束词（好/嗯/所以）一律不算**。
  *      ⚠️ 2026-10-18 修正：**「发」不在这条正则里**（注释曾写「发」但与代码不一致）。理由见下一条 —— 它不能预测结局。
  *      实测：`#6e4f13` 202 次「好。」（收束词，不算）—— 它**确实健康**，这一条成立。
@@ -26,6 +26,13 @@
  *   ③ **`maxRep` = 单个 reasoning block 内的最长重复**；**"全部重复次数之和"是坏指标**。
  *      实测：全库 747 个会话，最长重复 × 空转率的 Pearson r = **-0.0076**（n=36）⇒ 两者正交。
  *      反例：`#bf8c60` 重复 15901 次但空转仅 3.8%；`#235403` 重复 431 次、空转 26.7%。
+ *   ④ **显示层必须出示「发作次数」，包括 0**（2026-10-20 补，依据 `FINDINGS §12`）：
+ *      L3 有一条分支是 `maxRep >= 30`（L344），而「用 maxRep 任何阈值」被
+ *      `~/.dsh/inflight/制度修补-最终提案.md` §4 与本文件 L22 明文禁过。
+ *      实测 `#0d3990`：`episodes=0` / `inEpisode=false` / 单次空转 1/50，却因 T40/S1
+ *      一个 **6,178 字符、有文字有工具**的正常块里 63 次「做。」被判 L3。
+ *      ⇒ 「发作 0 次」是当场识破这类假警报的唯一字段 —— 别再用 `episodes ? … : ''` 把它藏起来。
+ *      ⇒ ⇒ **动判据前先读那张「不做什么」的表**：它比代码老，而且是有人先付过学费的。
  *
  * 用法：
  *   node session-signals.cjs                 # 紧凑 2 行（给 inflight.ps1 用）
@@ -62,6 +69,16 @@
  *   · 空转（--full 才有）= `assistant/message` 里既无 text 也无 tool-call（只有 reasoning）。
  *     ⚠️ 它在一次性子代理会话上会**误报**（本机大量 0.08 MB 的子代理日志恰好是 1/1），
  *     所以它只作参考列，**不作判据**。
+ *
+ *   · ⚠️ **第三种形态（2026-10-19 全库复查；已知并接受，不新增信号）——「巨型空块」**：
+ *     单个 reasoning block **> 20,000 字符**、且该 step 无 text 无 tool-call、
+ *     且该 turn 的 `turn/end.kind === 'completed'`。
+ *     实测：全库 **141 个 10k+ 块里只有 1 例**（`#4cc913` / 42,771 字符 / 2,353 次「好。」/ 输出 0）。
+ *     `loop` 信号能抓到它**当且仅当她自述"被截断"**；**没有自述时当前无判据**。
+ *     ⚠️ 门槛不能再低：20k 以下会把 `#bf8c60` 那种 **448,400 字符 / 256k tokens 的 `max-tokens` 截断**
+ *     一起抓进来（它 `turn/end` 是 `max-tokens`，**不是** completed）。
+ *     ⇒ **接受这个盲区**（命中率 1/141，维护成本不划算）；哪天再见到"无自述的巨型空块"，
+ *     再把它做成独立信号（照 `loop` 信号的做法，不进 L0–L4）。
  */
 
 const fs = require('fs');
@@ -477,7 +494,13 @@ function restedShorts() {
 const abnormal = rows.filter(isAbn)
     .sort((a, b) => b.stage - a.stage || b.maxRep - a.maxRep || b.stallTurns - a.stallTurns);
   const mineAbnormal = mine && isAbn(mine);
-  const fmtAbn = r => `#${r.short} ${r.stageName}(催促${r.urgentTrend.toFixed(1)}×·空转${r.stallTurns}轮·咒语${r.maxRep})`;
+  // ⚠️ 发作次数必须显示，**包括 0**（2026-10-20，依据 `FINDINGS §12`）：
+  //    L3 有一条分支是 `maxRep >= 30`（L344），而"用 maxRep 任何阈值"被
+  //    `制度修补-最终提案.md` §4 与本文件 L22 明文禁过。实测 `#0d3990` 零发作、
+  //    却因 T40/S1 那个 6,178 字符的正常块里 63 次「做。」被判 L3。
+  //    ⇒ 「发作 0 次」是唯一能当场识破这类假警报的字段。旧版把它藏起来
+  //      （`episodes ? … : ''`），等于在"最安全的情况"下不出示安全证据。
+  const fmtAbn = r => `#${r.short} ${r.stageName}(催促${r.urgentTrend.toFixed(1)}×·空转${r.stallTurns}轮·咒语${r.maxRep}·发作${r.episodes}次)`;
 
   // 缓存可信度审计：抽 5 个"命中缓存"的会话全量重算，逐字段比对
   if (OPTS.verifyCache) {
@@ -547,7 +570,7 @@ const abnormal = rows.filter(isAbn)
     console.log(`[0] 📏 会话规模  合计 ${fmtMB(totalBytes)} / ${rows.length} 个日志（${scopeTxt}） · 最大 ${topTxt} · ${tierTxt}`);
 
     const mineTxt = mine
-      ? `本会话 #${mine.short} ${mine.stageName || 'L0'}（催促 ${mine.urgentTrend.toFixed(1)}× · 空转 ${mine.stallTurns}/${mine.turns} 轮 · 咒语 ${mine.maxRep}${mine.episodes ? ' · 发作 ' + mine.episodes + ' 次' + (mine.inEpisode ? '(未缓解)' : '(已缓解)') : ''}）`
+      ? `本会话 #${mine.short} ${mine.stageName || 'L0'}（催促 ${mine.urgentTrend.toFixed(1)}× · 空转 ${mine.stallTurns}/${mine.turns} 轮 · 咒语 ${mine.maxRep} · 发作 ${mine.episodes} 次${mine.episodes ? (mine.inEpisode ? '(未缓解)' : '(已缓解)') : ''}）`
       : '本会话(未识别到日志)';
   const others = abnormal.filter(r => !mine || r.short !== mine.short).filter(r => !r.rested);
     const abnTxt = others.length
