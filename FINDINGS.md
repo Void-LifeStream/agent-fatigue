@@ -832,6 +832,11 @@ number carries enough context to be argued with.
 > found it holds **three different things**, and that **most of what remains is not "the agent got
 > stuck" at all**.
 
+**The short version:** of **76** stalls, **8 are not agent failures at all** — a user typo, the stop
+button, a message that pre-empted the turn. Of the **67** that ended normally, **41 (61%)** are
+*lost deliveries*: the answer was written into the reasoning block and the visible reply was empty.
+(§13.1–13.2 have the tables; §13.4 has what it means for the protocol.)
+
 ### 13.1 The bucket, re-broken
 
 50 registered user sessions · **1,535 turns** · **76 stalls** (same definition as §1).
