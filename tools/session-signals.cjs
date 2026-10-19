@@ -470,13 +470,31 @@ function run() {
   //   实测 18 次里只有 2 次前面是空转。仍会显示出来供参考，但**不参与判定**。
   const STALL_TH = 5, REP_TH = 100, URGENT_TH = 3, URGENT_LATE_MIN = 1.0;
   const isAbn = r => r.stage >= 3;
-  // ---- 已休息的会话（读台账里状态列为 archived 的行）----
+  // ---- 已休息的会话（**两个来源取并集**）----
 // 为什么需要：报警原先只看"日志里有没有异常信号"，不看"这只还在不在" ⇒
 // 已经休息/归档的会话会被永远报下去，让每个开工的会话以为"她还在线上、还没交班"。
-// 台账是本机"谁走了"的权威（状态列 `archived`），所以这里读它。
-// 用户 2026-10-16 授权：让已休息的不再被报。读不到台账就退回旧行为（只会多报，不会漏报）。
+//
+// ① **权威源（2026-10-20 补）：DSH 自己的 `global.archivedSessionIds`**
+//    —— 主人点归档按钮时由 DSH 写入，**不需要任何会话手动维护**。
+//    实测（10-20 01:5x）：43 条；`#235403` / `#afeb9e` / `#fc232e` **全在里面**，
+//    而台账里这三只**一行都没有**（`#fc232e` 只有 ready 行）⇒ **只读台账会把这 3 只永久报下去**，
+//    正是网络侧专审 `#383604` 报告的那个误导（会让接班者去"关心"已经休息的会话）。
+// ② **后备源：台账状态列 `archived` 的行**（旧行为，保留） —— 覆盖"台账标了但没点按钮"的情况。
+// ⇒ 两个源都读不到就退回旧行为（只会多报，不会漏报）；并集只会**多排除已确认归档的**，不会误放。
+// 用户 2026-10-16 授权：让已休息的不再被报。
 function restedShorts() {
   const set = new Set();
+  // ① DSH 权威归档列表
+  try {
+    const ws = JSON.parse(fs.readFileSync(
+      path.join(os.homedir(), '.dsh', 'storages', 'workspace.json'), 'utf8'));
+    const ids = (ws.global && ws.global.archivedSessionIds) || [];
+    for (const id of ids) {
+      const s = String(id).replace(/^session-/, '');
+      if (s.length >= 6) set.add(s.slice(-6));
+    }
+  } catch (e) { /* 读不到就靠台账，见下 */ }
+  // ② 台账状态列
   try {
     const wb = path.join(os.homedir(), '.dsh', 'inflight', 'workboard.md');
     const txt = fs.readFileSync(wb, 'utf8');
