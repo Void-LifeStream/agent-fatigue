@@ -998,12 +998,14 @@ counter-example to the community claim.
    correlation is **−0.021**; the between-turn correlation is **0.682**. Compaction shortens *steps*
    and *context* but never touches the **turn structure** — so the right sentence is not "compaction
    cut 58.5% and it didn't help", it is **"compaction cuts the wrong layer."**
-6. **We have not excluded "later tasks are harder."** Turn index and task difficulty are perfectly
-   collinear inside one session, and this data cannot separate them: a rising tendency with turn
-   number is exactly what "one task per turn, and the tasks get harder" would look like. Our first
-   attempt to separate them **collapsed mathematically** — inside a post-compaction window,
-   `stepsSinceCompaction = totalSteps − constant`, so the two predictors are literally the same
-   variable, and their rank correlations differed by **exactly 0.000000 in 34/34 events**.
+6. **"Later tasks are harder" is falsified in the observable sense — §15 does that.** Late turns are
+   shorter, use fewer tools and fail less often, while repeating about an order of magnitude more;
+   controlling for five difficulty proxies leaves the turn effect essentially untouched (0.682 →
+   0.583–0.643). What remains unidentifiable is **unobservable** difficulty (vaguer tasks), which a
+   within-session design cannot reach. Our first attempt to separate the two also collapsed
+   **mathematically** — inside a post-compaction window `stepsSinceCompaction = totalSteps −
+   constant`, so the predictors were literally the same variable and their rank correlations differed
+   by **exactly 0.000000 in 34/34 events**.
 
 ### 14.8 Bottom line
 
@@ -1013,3 +1015,116 @@ counter-example to the community claim.
 > because the tendency does not live in the context.**
 > If you were hoping that a bigger window or a compaction would fix repetition, this is the
 > measurement that says otherwise.
+
+---
+
+## 15. 2026-10-20 — the late-session effect is a signature of *degradation*, not of harder work
+
+> Why this section exists: §14 identified "position" but did not answer what position *is*. The most
+> natural rival explanation is "later tasks are harder". This section measured that — and the sign
+> came out **backwards**.
+
+### 15.1 The one-line answer
+
+Late turns are **shorter, use fewer tools, and fail less often** — and yet they repeat more: the
+*typical* step moves from a median of **1.44 to 3.63**, while the *mean* is dragged from 1.74 to
+14.94 by a handful of zero-output steps. So "tasks get harder" is **falsified in the observable
+sense**. What it looks like instead is a signature of **degradation** — or of delivery failure —
+though "the conversation simply piled up more short filler" is not excluded either (see §15.7).
+
+### 15.2 The numbers
+
+30 qualifying sessions (≥10 turns; 1,324 turns total). `x` = turn index, `y` = mean `maxRep` of that
+turn, `m` = a difficulty proxy.
+
+| Correlation | median ρ | sessions +/− |
+|---|---|---|
+| turn index ↔ turn's **step count** | **−0.139** | +7 / −23 |
+| turn index ↔ **reasoning characters** | **−0.416** | +1 / −29 |
+| turn index ↔ **tool calls** | **−0.271** | +3 / −27 |
+| turn index ↔ **tool failures** | −0.114 | +9 / −20 |
+| turn index ↔ **tool output volume** | −0.237 | +5 / −25 |
+| **turn index ↔ repeat intensity** | **+0.682** | +23 / −7 |
+
+Mean `maxRep` by turn tercile: **1.90 → 7.23 → 18.16** (median 1.38 → 1.93 → 3.27).
+
+### 15.3 Controlling for them barely moves it
+
+| Proxy controlled | `ρ(x, y \| m)` | Δ from 0.682 |
+|---|---|---|
+| `turnSteps` | **0.624** | −0.003 |
+| `turnChars` | **0.643** | −0.002 |
+| `turnToolCalls` | **0.616** | −0.009 |
+| all three at once | **0.629** | −0.053 |
+| all three *failure-type* proxies at once | **0.583** | p = 0.002 |
+
+⇒ **All five proxies carry a negative sign, and none of them explains the turn effect.**
+
+**What about the *user's* input?** All five proxies above are **model output** — and since §15.5
+shows turns are advanced by the user, "the user changed what they asked for" was a live alternative
+that our first draft simply did not test. It is measurable, and we measured it: 3,248
+`user/message` events, 1,398 of them with `source.kind === 'user'`, covering **1,240 of 1,324** turns.
+
+| proxy | `ρ(turn, proxy)` | `ρ(turn, repeat \| proxy)` |
+|---|---|---|
+| user message characters | **0.006** (+15/−15) | 0.664 |
+| user message count | −0.173 (+9/−18) | 0.678 |
+| contains urging words | 0.060 (+20/−10) | 0.691 |
+| all three at once | — | **0.651** |
+
+⇒ **None of them co-varies with turn index** (the lenient one is 0.006, and the urging-word proxy is
+weak: "*now*" alone accounts for 258 of 353 hits). So the **measurable** part of user input does not
+explain the effect. The **content-level drift** — whether the tasks themselves changed character —
+remains unmeasured.
+
+### 15.4 ⚠️ Why this is still not a causal proof
+
+1. **The proxies point the wrong way, so they cannot explain it.** A variable with `ρ(x,D)<0` and
+   `ρ(D,y)<0` cannot generate `ρ(x,y)=+0.68`. So we **only falsified the "more work" version of
+   difficulty** — we did **not** show that the turn counter has causal force (turn index was never
+   randomised).
+2. **The proxies are post-treatment**: measured in the same turn as `y`. `turnChars` is especially
+   dirty — the 15,901-repeat turn carries **448,000 characters**, i.e. **the repetition produced the
+   characters**, not the other way round.
+3. **A within-session design cannot control something constant within the session.** If "the 6th
+   task is inherently vaguer" and that does not show up in step count, characters, tool calls or
+   failure rate, then **no within-session proxy can capture it** — the only thing that co-varies with
+   it is the turn index itself.
+
+⇒ Honest phrasing: **"observable difficulty" is excluded; "unobservable difficulty" remains
+unidentifiable.**
+
+### 15.5 ⭐ One thing that does hold: turns cannot be manufactured by repetition
+
+`turn/start` events equal the number of distinct turns in **1,117 of 1,128 sessions** ⇒ turns are
+advanced by **user input**, not by the model.
+
+⇒ The reverse-causality worry in §14.7.3 ("repeating produces tokens, so the session reaches a later
+position faster") **does not apply at turn granularity**. This is much cleaner than step index: steps
+are advanced by the model, turns are advanced by the **user**.
+
+### 15.6 Boundaries
+
+- **30 sessions only** (out of 1,188 qualified, filtered to ≥10 turns) — long sessions only, not the
+  whole corpus.
+- Of the 7 "negative" sessions, `caea52` (§14.6's 332-step zero-repeat counter-example) shows
+  −0.003, which is **noise from a degenerate rank**, not a reverse effect.
+- Part of the negative `ρ(proxy, repeat)` is **definitional**: `maxRep` counts repetitions of lines
+  **≤6 characters**, and long substantive reasoning naturally does not hit that pattern. **So the
+  negative sign must not be read as "thinking longer makes you repeat less".**
+- ⚠️ **Our cohort removed the very pathology we wanted to study.** The three excluded heavy sessions
+  hold **52** zero-output steps; the 30 kept sessions hold **22**. Asking "are pathological and
+  benign repetition the same thing?" in a sample with the pathology stripped out can only return
+  "benign". Also, all `maxRep ≥ 100` steps in this cohort come from a **single session** (`c3ff05`,
+  108 of 117), so that stratum is not extrapolatable.
+
+### 15.7 Bottom line
+
+> **Repetition in late turns is not a signature of "the work got harder". It looks like a signature
+> of "it started to give up" — but the honest version is narrower than that.**
+> Late turns are shorter, use fewer tools, fail less often; their *typical* repetition rises (median
+> 1.44 → 3.63) while a handful of zero-output steps drag the *mean* an order of magnitude higher.
+> **Two explanations survive**: "it stopped really trying" and "the conversation simply piled up more
+> short filler". This data cannot separate them — the cohort was cleaned of exactly the pathological
+> steps that would.
+> And this is §11's "it can't stop", seen from the other side.
