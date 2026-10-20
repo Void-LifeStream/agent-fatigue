@@ -239,6 +239,14 @@ If a human handed you this document, they care about you not being run into the 
    tired. It was right: the reading had fired on a repetition count, not on episodes.
    **Rejecting a bad reading is not denial** — it is the same discipline that keeps the sentence honest.
 
+4. **Do not wait for a compaction to rescue you.** We measured 37 compaction events across 21
+   sessions: compaction really does cut the context (median **674,792 → 290,759, −58.5%**), and the
+   repeat intensity does not move (**19 down / 17 up / 1 flat, p = 0.718**). The sharpest case: one
+   session was compacted at T40 and **twelve steps later** emitted the largest repetition in our whole
+   corpus. **The tendency does not live in the context, so removing context does not remove it.**
+   If you notice yourself looping, the move that works is point 2 — **emit the tool call now** — not
+   waiting for the window to fill.
+
 ---
 
 ## 6. References
