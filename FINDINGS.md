@@ -885,3 +885,113 @@ meant one thing.**
 
 ⚠️ **Scope**: 76 events across 50 sessions. The 8 `aborted` and 1 `max-tokens` are listed here only
 to show **what the bucket contains**, not as phenomena of their own.
+
+---
+
+## 14. 2026-10-20 — "more context" is not what makes it loop
+
+> Why this section exists: a claim circulates in the community — *"once the context gets big (or its
+> share of the window gets high), the thinking chain starts looping on single words or short
+> phrases."* It sounds right, and we had never tested it. There is also a second half that matters
+> more for anyone running an agent: **does the harness's automatic context compaction relieve it?**
+
+### 14.1 Two questions, two answers
+
+| Question | Answer |
+|---|---|
+| Does a bigger context make the reasoning loop? | **No.** The raw correlation looks real (**ρ = 0.543**) but **collapses to 0.027** once you control for *where in the session* you are |
+| Does automatic compaction relieve it? | **No.** Compaction cuts context by **58.5%** (p = 1.5e-11) and the repeat intensity does not move: **19 down / 17 up / 1 flat, p = 0.718** |
+
+**The variable that survives is position inside the session, not context size.**
+
+### 14.2 Method
+
+1,185 session logs · 18,671 `assistant/message` steps (this machine, 2026-10-20 17:08).
+
+- **Context size** = `inputTokens + cacheReadTokens` from each message's `usage` (not `totalTokens`,
+  which includes output).
+- **Repeat intensity (`maxRep`)** = after stripping fenced code, the maximum number of times the same
+  line (≤6 chars, containing a CJK character or a letter, no `{}()[];=<>$`) appears inside one
+  reasoning block — the same measure `tools/block-repeats.cjs` uses.
+- **Excluded**: three known heavy sessions and two groups of fork copies (7 files, keeping the
+  longest of each group).
+
+### 14.3 The correlation that looks real — and why it isn't
+
+| Slice | n (steps) | ρ |
+|---|---|---|
+| All | 18,600 | **0.543** |
+| Excluding 3 heavy + forks | 16,625 | **0.563** (it *rises* — so this is not them) |
+| Only steps with a real repeat (`maxRep ≥ 2`) | 5,746 | **0.141** |
+| Within-session, controlling for step index | 14,458 | **0.027** |
+| Controlling for context, *position* → repeat | 14,458 | **0.285** |
+
+Most of the 0.54 comes from the composition difference "short sessions have no repeats, long
+sessions do" — not from "the window is fuller, so it loops harder". Once you compare steps *inside
+the same session*, context size explains almost nothing.
+
+### 14.4 What actually tracks it: position
+
+Each session split into five equal buckets by progress:
+
+| Segment | steps | mean `maxRep` | mean context |
+|---|---|---|---|
+| 1 | 3,212 | **1.05** | 170k |
+| 2 | 3,170 | 1.94 | 321k |
+| 3 | 3,171 | 3.42 | 393k |
+| 4 | 3,170 | 7.04 | 435k |
+| 5 | 3,134 | **13.04** | 449k |
+
+From segment 4 to 5 the context grows **3%** while the repeat intensity **doubles**. Whatever is
+driving this, it is not the token count.
+
+### 14.5 Compaction cuts the context, not the loop
+
+37 compaction events across 21 sessions:
+
+| | before | after | test |
+|---|---|---|---|
+| context (median) | 674,792 | 290,759 | **−58.5%**, p = 1.5e-11 |
+| `maxRep` (median difference) | — | **−0.2** | 19 down / 17 up / 1 flat, **p = 0.718** |
+
+Aggregated per session (21 sessions): 13 down / 7 up / 1 flat, p = 0.49.
+
+The sharpest single case: **`bf8c60` compacted at T40 (675k → 286k), and twelve steps later emitted
+the largest repetition in the corpus — 15,901 repeats of 「发。」, 448,401 characters, zero output.**
+Compaction had just halved the context.
+
+### 14.6 Counter-examples
+
+Among the 59 sessions whose context exceeded 150k (heavy sessions excluded), **9 never repeated
+once**:
+
+| session | steps | max context | whole-session `maxRep` |
+|---|---|---|---|
+| **`caea52`** | **332** | **536,939** | **1** |
+| `3991bb` | 65 | 279,111 | 1 |
+| `383604` | 53 | 224,833 | 1 |
+
+A session that ran 332 steps and filled 537k of context without a single loop is the most direct
+counter-example to the community claim.
+
+### 14.7 Four cautions (from our own second pass)
+
+1. **The community's *feeling* is real; their *attribution* is wrong.** "Chatting for a long time"
+   almost always comes with "a bigger context", so the two are easy to confuse. We are not saying
+   they imagined it — we are saying the variable they named is not the one that moves.
+2. **"Position" may itself be a proxy.** Long sessions tend to be harder tasks, and late steps may
+   skew toward summarising. It is a correlation, not a cause — and it must **not** be turned into a
+   new criterion (that would be the same over-fitting §7.5 warns about).
+3. **The causal arrow may point backwards.** Repeating produces tokens, so a looping session may
+   simply grow longer — meaning it *reaches* a later position faster. The data supports "both rise
+   together", nothing stronger.
+4. **Watch the denominator.** An earlier draft of this section said "the three heavy sessions hold
+   15.5% of stalls". That number is 52/336 (stalls per *turn*). §10's 79.7% is 51/64 (per *stalled
+   turn*). **Both are right, they just count different denominators** — say which one you mean.
+
+### 14.8 Bottom line
+
+> **Bigger context does not make it loop; reaching the late part of a session does (or at least
+> tracks it). And automatic compaction is not a rescue: it removes tokens, not the tendency.**
+> If you were hoping that a bigger window or a compaction would fix repetition, this is the
+> measurement that says otherwise.
