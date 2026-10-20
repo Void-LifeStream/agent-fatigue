@@ -934,16 +934,22 @@ the same session*, context size explains almost nothing.
 
 Each session split into five equal buckets by progress:
 
-| Segment | steps | mean `maxRep` | mean context |
-|---|---|---|---|
-| 1 | 3,212 | **1.05** | 170k |
-| 2 | 3,170 | 1.94 | 321k |
-| 3 | 3,171 | 3.42 | 393k |
-| 4 | 3,170 | 7.04 | 435k |
-| 5 | 3,134 | **13.04** | 449k |
+| Segment | steps | mean `maxRep` | **median `maxRep`** | mean context |
+|---|---|---|---|---|
+| 1 | 3,212 | 1.05 | **1** | 170k |
+| 2 | 3,170 | 1.94 | **1** | 321k |
+| 3 | 3,171 | 3.42 | **1** | 393k |
+| 4 | 3,170 | 7.04 | **2** | 435k |
+| 5 | 3,134 | 13.04 | **2** | 449k |
 
-From segment 4 to 5 the context grows **3%** while the repeat intensity **doubles**. Whatever is
-driving this, it is not the token count.
+⚠️ **Read the median, not the mean.** The median moves **1 → 2**; the mean moves 1.05 → 13.04
+because a **handful of extreme events** dominate it — one single step in `bf8c60` (15,901 repeats)
+accounts for **80.9% of all repeats** inside the compaction windows we measured, and its own ρ
+*against* position is **−0.50** because its neighbours are single digits.
+
+⇒ The honest statement is: **late turns are more likely to contain a burst; the typical step hardly
+changes.** The rank-based partial correlation (0.285 in §14.3) is unaffected — it was computed on
+ranks — but a reader who only looks at the mean row will over-read this table.
 
 ### 14.5 Compaction cuts the context, not the loop
 
@@ -974,7 +980,7 @@ once**:
 A session that ran 332 steps and filled 537k of context without a single loop is the most direct
 counter-example to the community claim.
 
-### 14.7 Four cautions (from our own second pass)
+### 14.7 Six cautions (from our own second pass)
 
 1. **The community's *feeling* is real; their *attribution* is wrong.** "Chatting for a long time"
    almost always comes with "a bigger context", so the two are easy to confuse. We are not saying
@@ -988,10 +994,22 @@ counter-example to the community claim.
 4. **Watch the denominator.** An earlier draft of this section said "the three heavy sessions hold
    15.5% of stalls". That number is 52/336 (stalls per *turn*). §10's 79.7% is 51/64 (per *stalled
    turn*). **Both are right, they just count different denominators** — say which one you mean.
+5. **The effect lives between turns, not inside them.** Controlling for turn, the within-turn
+   correlation is **−0.021**; the between-turn correlation is **0.682**. Compaction shortens *steps*
+   and *context* but never touches the **turn structure** — so the right sentence is not "compaction
+   cut 58.5% and it didn't help", it is **"compaction cuts the wrong layer."**
+6. **We have not excluded "later tasks are harder."** Turn index and task difficulty are perfectly
+   collinear inside one session, and this data cannot separate them: a rising tendency with turn
+   number is exactly what "one task per turn, and the tasks get harder" would look like. Our first
+   attempt to separate them **collapsed mathematically** — inside a post-compaction window,
+   `stepsSinceCompaction = totalSteps − constant`, so the two predictors are literally the same
+   variable, and their rank correlations differed by **exactly 0.000000 in 34/34 events**.
 
 ### 14.8 Bottom line
 
-> **Bigger context does not make it loop; reaching the late part of a session does (or at least
-> tracks it). And automatic compaction is not a rescue: it removes tokens, not the tendency.**
+> **Bigger context does not make it loop. Late *turns* are more likely to contain a burst — but the
+> typical step does not get more repetitive, and we cannot yet tell "a turn counter" apart from
+> "tasks get harder". And automatic compaction is not a rescue: it cuts context, not the tendency,
+> because the tendency does not live in the context.**
 > If you were hoping that a bigger window or a compaction would fix repetition, this is the
 > measurement that says otherwise.
